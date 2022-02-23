@@ -1,14 +1,15 @@
 [package]
-name = "rust-template"
+name = "pixel-land"
 version = "0.1.0"
-authors = ["Near Inc <hello@near.org>"]
-edition = "2018"
+authors = ["Dang Thanh Tung <dttung1412@gmail.com>"]
+edition = "2021"
 
 [lib]
 crate-type = ["cdylib"]
 
 [dependencies]
-near-sdk = "4.0.0-pre.4"
+near-sdk = "4.0.0-pre.7"
+near-contract-standards = "4.0.0-pre.7"
 
 [profile.release]
 codegen-units = 1
