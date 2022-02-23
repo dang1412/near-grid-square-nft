@@ -15,6 +15,7 @@ NOTES:
   - To prevent the deployed contract from being modified or deleted, it should not have any access
     keys on its account.
 */
+use near_contract_standards::non_fungible_token::events::NftMint;
 use near_contract_standards::non_fungible_token::metadata::{
     NFTContractMetadata, NonFungibleTokenMetadataProvider, TokenMetadata, NFT_METADATA_SPEC,
 };
@@ -137,28 +138,17 @@ impl Contract {
         assert!(env::attached_deposit() >= cost, "Not enough batch mint pay");
 
         let mut tokens: Vec<Token> = Vec::new();
-
-        // let closure = |sub_token_id| -> bool {
-        //     let token = self.nft_mint(sub_token_id, receiver_id.clone(), token_metadata.clone());
-        //     tokens.push(token);
-        //     true
-        // };
-
-        // let mut sub_token_ids: Vec<TokenId> = Vec::new();
+        let mut token_ids_vec: Vec<TokenId> = Vec::new();
 
         iterate_token_area(token_id, width, height, |sub_token_id| -> bool {
-            let token = self.nft_mint(sub_token_id, receiver_id.clone(), token_metadata.clone());
+            let token = self.tokens.internal_mint_with_refund(sub_token_id.clone(), receiver_id.clone(), Some(token_metadata.clone()), None);
             tokens.push(token);
-            // sub_token_ids.push(sub_token_id);
+            token_ids_vec.push(sub_token_id);
             true
         });
 
-        // println!("sub_token_ids: {:?}", sub_token_ids);
-
-        // for sub_token_id in sub_token_ids {
-        //     self.nft_mint(sub_token_id.clone(), receiver_id.clone(), token_metadata.clone());
-        //     println!("minted: {}", sub_token_id);
-        // }
+        let token_ids: Vec<&str> = token_ids_vec.iter().map(|id| id.as_str()).collect();
+        NftMint { owner_id: &receiver_id, token_ids: &token_ids[..], memo: None }.emit();
 
         // let (start_x, start_y) = get_coord(token_id);
         // for i in 0..(width as i128) {
@@ -170,6 +160,8 @@ impl Contract {
         //         tokens.push(token);
         //     }
         // }
+
+        // TODO refund
 
         tokens
     }
@@ -227,15 +219,15 @@ impl Contract {
 
         self.tokens.owner_by_id
             .iter()
-            .filter(|(token_id, _)| !self.is_covered_token((*token_id).clone()))
+            .filter(|(token_id, _)| !self.is_covered_token(token_id))
             .map(|(token_id, _)| self.get_token_with_size(token_id))
             // .skip(start_index as usize)
             // .take(limit)
             .collect()
     }
 
-    fn is_covered_token(&self, token_id: TokenId) -> bool {
-        match self.token_merged.get(&token_id) {
+    fn is_covered_token(&self, token_id: &TokenId) -> bool {
+        match self.token_merged.get(token_id) {
             Some(_) => true,
             None => false
         }
@@ -296,26 +288,26 @@ mod tests {
         testing_env!(context.build());
         let mut contract = Contract::new_default_meta(accounts(0).into(), 5 * ONE_NEAR_AMOUNT);
 
-        // testing_env!(context
-        //     .storage_usage(env::storage_usage())
-        //     .attached_deposit((MINT_STORAGE_COST + 5 * ONE_NEAR_AMOUNT) * 10)
-        //     .predecessor_account_id(accounts(0))
-        //     .build());
+        testing_env!(context
+            .storage_usage(env::storage_usage())
+            .attached_deposit(MINT_STORAGE_COST + 45 * ONE_NEAR_AMOUNT)
+            .predecessor_account_id(accounts(0))
+            .build());
 
-        let sub_token_ids = ["7", "3", "10", "11", "12", "13", "14"];
-        for token_id in sub_token_ids {
-            testing_env!(context
-                .storage_usage(env::storage_usage())
-                .attached_deposit(MINT_STORAGE_COST + 5 * ONE_NEAR_AMOUNT)
-                .predecessor_account_id(accounts(0))
-                .build());
-            contract.nft_mint(token_id.to_string(), accounts(0), sample_token_metadata());
-        }
+        // let sub_token_ids = ["7", "3", "10", "11", "12", "13", "14"];
+        // for token_id in sub_token_ids {
+        //     testing_env!(context
+        //         .storage_usage(env::storage_usage())
+        //         .attached_deposit(MINT_STORAGE_COST + 5 * ONE_NEAR_AMOUNT)
+        //         .predecessor_account_id(accounts(0))
+        //         .build());
+        //     contract.nft_mint(token_id.to_string(), accounts(0), sample_token_metadata());
+        // }
 
-        // let token_id = "7".to_string();
-        // let tokens = contract.nft_batch_mint(token_id.clone(), 3, 3, accounts(0), sample_token_metadata());
-        // let token_0 = tokens[1].clone();
-        // println!("tokens {} {}", token_0.token_id, token_0.owner_id);
+        let token_id = "7".to_string();
+        let tokens = contract.nft_batch_mint(token_id.clone(), 3, 3, accounts(0), sample_token_metadata());
+        let token_0 = tokens[2].clone();
+        println!("tokens {} {}", token_0.token_id, token_0.owner_id);
     }
 
     #[test]
