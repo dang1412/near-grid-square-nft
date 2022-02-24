@@ -25,7 +25,6 @@ use near_sdk::serde::{Serialize};
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::LazyOption;
 use near_sdk::collections::LookupMap;
-// use near_sdk::json_types::AccountId;
 use near_sdk::{
     env, near_bindgen, AccountId, Balance, BorshStorageKey, PanicOnDefault, Promise, PromiseOrValue,
 };
@@ -33,16 +32,7 @@ use near_sdk::{
 mod utils;
 use utils::*;
 
-// use cast::{u128, Error};
-
-// near_sdk::setup_alloc!();
-
-// struct RecSize {
-//     width: u8,
-//     height: u8
-// }
-
-#[derive(Serialize)]
+#[derive(Serialize, Debug, PartialEq)]
 #[serde(crate = "near_sdk::serde")]
 pub struct UncoveredToken {
     token_id: TokenId,
@@ -141,25 +131,17 @@ impl Contract {
         let mut token_ids_vec: Vec<TokenId> = Vec::new();
 
         iterate_token_area(token_id, width, height, |sub_token_id| -> bool {
+            // mint token without refund (refund_id is None)
+            // TODO all token using same metadata
             let token = self.tokens.internal_mint_with_refund(sub_token_id.clone(), receiver_id.clone(), Some(token_metadata.clone()), None);
             tokens.push(token);
             token_ids_vec.push(sub_token_id);
             true
         });
 
+        // emit event
         let token_ids: Vec<&str> = token_ids_vec.iter().map(|id| id.as_str()).collect();
         NftMint { owner_id: &receiver_id, token_ids: &token_ids[..], memo: None }.emit();
-
-        // let (start_x, start_y) = get_coord(token_id);
-        // for i in 0..(width as i128) {
-        //     for j in 0..(height as i128) {
-        //         let x = start_x + i;
-        //         let y = start_y + j;
-        //         let sub_token_id = get_token_id(x, y);
-        //         let token = self.nft_mint(sub_token_id, receiver_id.clone(), token_metadata.clone());
-        //         tokens.push(token);
-        //     }
-        // }
 
         // TODO refund
 
@@ -167,9 +149,6 @@ impl Contract {
     }
 
     pub fn nft_merge(&mut self, token_id: TokenId, width: u8, height: u8) {
-        // let token = self.tokens.nft_token(token_id.clone()).unwrap_or_else(|| env::panic_str("Token not found"));
-        // let owner = token.owner_id;
-        // let owner_id = self.tokens.owner_by_id.get(&token_id).unwrap_or_else(|| env::panic_str("Token not found"));
         let owner_id = expect_token_found(self.tokens.owner_by_id.get(&token_id));
         assert_eq!(owner_id, env::predecessor_account_id(), "No permission to merge");
 
@@ -183,21 +162,6 @@ impl Contract {
             }
             true
         });
-
-        // let (start_x, start_y) = get_coord(token_id.clone());
-        // for i in 0..(width as i128) {
-        //     for j in 0..(height as i128) {
-        //         if i == 0 && j == 0 { continue; }
-
-        //         let x = start_x + i;
-        //         let y = start_y + j;
-        //         let sub_token_id = get_token_id(x, y);
-        //         sub_token_ids.push(sub_token_id.clone());
-
-        //         let sub_owner_id = expect_token_found(self.tokens.owner_by_id.get(&sub_token_id));
-        //         assert_eq!(sub_owner_id, owner_id, "No permission to merge");
-        //     }
-        // }
 
         self.token_merge.insert(&token_id, &(width, height));
         for sub_token_id in &sub_token_ids {
@@ -215,14 +179,10 @@ impl Contract {
     }
 
     pub fn get_not_covered_tokens(&self) -> Vec<UncoveredToken> {
-        // let mut tokens: Vec<UncoveredToken> = Vec::new();
-
         self.tokens.owner_by_id
             .iter()
             .filter(|(token_id, _)| !self.is_covered_token(token_id))
             .map(|(token_id, _)| self.get_token_with_size(token_id))
-            // .skip(start_index as usize)
-            // .take(limit)
             .collect()
     }
 
@@ -282,32 +242,78 @@ mod tests {
         }
     }
 
+    fn prepare_mint_token(context: &mut VMContextBuilder, contract: &mut Contract, account: AccountId, token_id: TokenId, width: u8, height: u8) -> Vec<Token> {
+        testing_env!(context
+            .storage_usage(env::storage_usage())
+            .attached_deposit(MINT_STORAGE_COST + (width as u128) * (height as u128) * ONE_NEAR_AMOUNT)
+            .predecessor_account_id(account.clone())
+            .build());
+
+        contract.nft_batch_mint(token_id.clone(), width, height, account, sample_token_metadata())
+    }
+
     #[test]
     fn test_batch_mint() {
         let mut context = get_context(accounts(0));
         testing_env!(context.build());
-        let mut contract = Contract::new_default_meta(accounts(0).into(), 5 * ONE_NEAR_AMOUNT);
+        let mut contract = Contract::new_default_meta(accounts(0), ONE_NEAR_AMOUNT);
+        let tokens = prepare_mint_token(&mut context, &mut contract, accounts(0), "7".to_string(), 3, 2);
 
-        testing_env!(context
-            .storage_usage(env::storage_usage())
-            .attached_deposit(MINT_STORAGE_COST + 45 * ONE_NEAR_AMOUNT)
-            .predecessor_account_id(accounts(0))
-            .build());
+        let token_ids_vec: Vec<&str> = tokens.iter().map(|token| token.token_id.as_str()).collect();
+        assert_eq!(token_ids_vec, vec!["7", "0", "8", "1", "9", "10"]);
+    }
 
-        // let sub_token_ids = ["7", "3", "10", "11", "12", "13", "14"];
-        // for token_id in sub_token_ids {
-        //     testing_env!(context
-        //         .storage_usage(env::storage_usage())
-        //         .attached_deposit(MINT_STORAGE_COST + 5 * ONE_NEAR_AMOUNT)
-        //         .predecessor_account_id(accounts(0))
-        //         .build());
-        //     contract.nft_mint(token_id.to_string(), accounts(0), sample_token_metadata());
-        // }
+    #[test]
+    fn test_nft_merge() {
+        let mut context = get_context(accounts(0));
+        testing_env!(context.build());
+        let mut contract = Contract::new_default_meta(accounts(0).into(), ONE_NEAR_AMOUNT);
 
-        let token_id = "7".to_string();
-        let tokens = contract.nft_batch_mint(token_id.clone(), 3, 3, accounts(0), sample_token_metadata());
-        let token_0 = tokens[2].clone();
-        println!("tokens {} {}", token_0.token_id, token_0.owner_id);
+        prepare_mint_token(&mut context, &mut contract, accounts(1), "19".to_string(), 2, 3);
+        prepare_mint_token(&mut context, &mut contract, accounts(0), "7".to_string(), 3, 2);
+
+        contract.nft_merge("7".to_string(), 3, 2);
+
+        let sub_token_ids = vec!["0", "8", "1", "9", "10"];
+
+        let dimension = contract.token_merge.get(&"7".to_string());
+        assert_eq!(dimension, Some((3, 2)));
+
+        for sub_token_id in sub_token_ids {
+            let sub_token_id: TokenId = sub_token_id.to_string();
+            let root = contract.token_merged.get(&sub_token_id);
+            assert_eq!(root, Some("7".to_string()));
+        }
+    }
+
+    #[test]
+    fn test_get_not_covered_tokens() {
+        let mut context = get_context(accounts(0));
+        testing_env!(context.build());
+        let mut contract = Contract::new_default_meta(accounts(0).into(), ONE_NEAR_AMOUNT);
+
+        // bob
+        prepare_mint_token(&mut context, &mut contract, accounts(1), "19".to_string(), 2, 3);
+        contract.nft_merge("18".to_string(), 2, 2);
+
+        // alice
+        prepare_mint_token(&mut context, &mut contract, accounts(0), "7".to_string(), 3, 2);
+        contract.nft_merge("7".to_string(), 2, 2);
+        contract.nft_merge("9".to_string(), 1, 2);
+
+        let mut tokens = contract.get_not_covered_tokens();
+        tokens.sort_by(|a, b| a.token_id.parse::<usize>().unwrap().cmp(&b.token_id.parse::<usize>().unwrap()));
+        println!("{:?}", tokens);
+
+        let expected = vec![
+            UncoveredToken { token_id: "6".to_string(), width: 1, height: 1 },
+            UncoveredToken { token_id: "7".to_string(), width: 2, height: 2 },
+            UncoveredToken { token_id: "9".to_string(), width: 1, height: 2 },
+            UncoveredToken { token_id: "18".to_string(), width: 2, height: 2 },
+            UncoveredToken { token_id: "19".to_string(), width: 1, height: 1 }
+        ];
+
+        assert_eq!(tokens, expected);
     }
 
     #[test]

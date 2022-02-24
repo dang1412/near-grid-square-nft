@@ -1,17 +1,8 @@
 use near_sdk::env;
 use near_contract_standards::non_fungible_token::TokenId;
-// use cast::{u128, i128};
 use std::cmp::{max};
 
 pub const _WORLD_SIZE: u128 = 100;
-
-// pub fn cast_i128(x: u128) -> i128 {
-//     // match i128(x) {
-//     //     Ok(num) => num,
-//     //     Err(_) => 0
-//     // }
-//     x as i128
-// }
 
 fn coord_degree(x: i128) -> i128 {
     let deg = if x >= 0 { x } else { - x - 1 };
@@ -102,9 +93,6 @@ mod tests {
 
     #[test]
     fn test_get_coord() {
-        // let (x, y) = get_coord("0".to_string());
-        // assert_eq!(x, -1);
-        // assert_eq!(y, -1);
         for i in 0..COORD_ARRAY.len() {
             let coord = get_coord(i.to_string());
             assert_eq!(coord, COORD_ARRAY[i]);
@@ -118,5 +106,26 @@ mod tests {
             let token_id = get_token_id(x, y);
             assert_eq!(token_id, i.to_string());
         }
+    }
+
+    #[test]
+    fn test_iterate_token_area() {
+        let mut token_ids_vec: Vec<TokenId> = Vec::new();
+        iterate_token_area("7".to_string(), 2, 3, |token_id| {
+            token_ids_vec.push(token_id);
+            true
+        });
+
+        // expected
+        let rs = vec!["7", "0", "3", "8", "1", "2"];
+
+        // method 1
+        for i in 0..6 {
+            assert_eq!(token_ids_vec[i], rs[i].to_string());
+        }
+
+        // method 2
+        let token_ids: Vec<&str> = token_ids_vec.iter().map(|token_id| token_id.as_str()).collect();
+        assert_eq!(token_ids, rs);
     }
 }
