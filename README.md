@@ -9,11 +9,11 @@ To get started with this template:
 3. Update line 4 of `Cargo.toml` with your project author names
 4. Set up the [prerequisites](https://github.com/near/near-sdk-rs#pre-requisites)
 5. Begin writing your smart contract in `src/lib.rs`
-6. Test the contract 
+6. Test the contract
 
     `cargo test -- --nocapture`
 
-8. Build the contract
+7. Build the contract
 
     `RUSTFLAGS='-C link-arg=-s' cargo build --target wasm32-unknown-unknown --release`
 
@@ -21,3 +21,10 @@ To get started with this template:
 
 * [Rust Smart Contract Quick Start](https://docs.near.org/docs/develop/contracts/rust/intro)
 * [Rust SDK Book](https://www.near-sdk.io/)
+
+## Commands
+
+```sh
+near call pixelland.dang1412.testnet nft_merge '{"token_id": "0","width":2,"height":1}' --accountId dang1412.testnet
+near view pixelland.dang1412.testnet get_not_covered_tokens
+```
