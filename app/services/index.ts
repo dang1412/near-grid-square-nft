@@ -1,3 +1,5 @@
+import { ContractPlatform } from './utils'
+
 export interface ContractDataService {
   // account
   signIn(): Promise<void>
@@ -6,7 +8,7 @@ export interface ContractDataService {
   getBalance(account: string): Promise<number>
 
   // read
-  getPixels(): Promise<any>
+  getPixels(): Promise<Pixel[]>
   getAccountPixel(account: string): Promise<any>
   getPickedPixels(): Promise<any>
   getAccountPickedPixels(account: string): Promise<any>
@@ -17,25 +19,39 @@ export interface ContractDataService {
   pickPixels(pixel: number, width: number, height: number): void
 }
 
-export enum ContractPlatform {
-  Near,
-  Polygon,
-  Bsc,
-}
+const serviceSingleton: {[platform: number]: Promise<ContractDataService>} = {}
 
-const serviceSingleton: {[platform: number]: ContractDataService} = {}
-
-export async function getContractDataService(platform: ContractPlatform): Promise<ContractDataService | undefined> {
+export async function getContractDataService(platform: ContractPlatform): Promise<ContractDataService> {
   if (!serviceSingleton[platform]) {
+    // substrate
+    if (platform === ContractPlatform.Substrate) {
+      // lazy load
+      serviceSingleton[platform] = new Promise((resolve) => {
+        import('./substrate').then(m => m.SubstrateDataService).then(SubstrateDataService => new SubstrateDataService()).then(resolve)
+      })
+    }
+
     // near
     if (platform === ContractPlatform.Near) {
       // lazy load
-      const NearDataService = await import('./near').then(m => m.NearDataService)
-      serviceSingleton[platform] = await NearDataService.getInstance()
+      // const NearDataService = await import('./near').then(m => m.NearDataService)
+      // serviceSingleton[platform] = await NearDataService.getInstance()
+      serviceSingleton[platform] = new Promise((resolve) => {
+        import('./near').then(m => m.NearDataService).then(NearDataService => NearDataService.getInstance()).then(resolve)
+      })
     }
 
     // polygon
   }
 
   return serviceSingleton[platform]
+}
+
+export * from './utils'
+
+export interface Pixel {
+  id: string
+  width: number
+  height: number
+  mergedTo?: string
 }

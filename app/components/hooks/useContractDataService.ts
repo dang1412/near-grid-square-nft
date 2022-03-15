@@ -9,7 +9,7 @@ export function useContractDataService(): ContractDataService | undefined {
   const [service, setService] = useState<ContractDataService | undefined>(undefined)
 
   useEffect(() => {
-    console.log(platform)
+    console.log('platform', platform)
     getContractDataService(platform).then(setService)
   }, [platform])
 

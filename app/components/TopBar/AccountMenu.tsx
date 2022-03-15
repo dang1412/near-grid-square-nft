@@ -6,6 +6,7 @@ import MenuItem from '@mui/material/MenuItem'
 import Button from '@mui/material/Button'
 
 import { useContractDataService } from '../hooks'
+import { ContractDataService } from '../../services'
 
 export const accountState = atom({
   key: 'accountState',
@@ -28,12 +29,22 @@ export const AccountMenu: React.FC<{}> = () => {
     setAnchorEl(null)
   }
 
+  const setIfLogin = (_service: ContractDataService | undefined) => {
+    if (_service) {
+      const account = _service.getAuthorizedAccountId()
+      setAccount(account)
+    } else {
+      setAccount('')
+    }
+  }
+
   const login = async () => {
     // const _signer = await getMetaSigner()
     // const _addr = await _signer.getAddress()
     // setAccount(_addr)
     if (service) {
       service.signIn()
+      setIfLogin(service)
     }
   }
 
@@ -65,12 +76,7 @@ export const AccountMenu: React.FC<{}> = () => {
   }, [account, service])
 
   useEffect(() => {
-    if (service) {
-      const account = service.getAuthorizedAccountId()
-      setAccount(account)
-    } else {
-      setAccount('')
-    }
+    setIfLogin(service)
   }, [service])
 
   return (

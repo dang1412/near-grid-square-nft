@@ -1,6 +1,6 @@
 import { connect, keyStores, type Near, type ConnectConfig, WalletConnection, Account, providers, utils } from 'near-api-js'
 
-import { ContractDataService } from '..'
+import { ContractDataService, Pixel } from '..'
 
 const keyStore = new keyStores.BrowserLocalStorageKeyStore()
 const contractId = 'pixelland.dang1412.testnet'
@@ -45,11 +45,9 @@ export class NearDataService implements ContractDataService {
   async getBalance(account: string): Promise<number> {
     const acc = await this.near.account(account)
     const balance = await acc.getAccountBalance()
-
     console.log(balance)
 
-    // utils.format.parseNearAmount()
-    return Number(balance.available)
+    return Number(utils.format.formatNearAmount(balance.available))
   }
 
   async signIn(): Promise<void> {
@@ -68,7 +66,7 @@ export class NearDataService implements ContractDataService {
     const rs = await this.wallet.requestSignIn(contractId)
   }
 
-  async getPixels(): Promise<any> {
+  async getPixels(): Promise<Pixel[]> {
     // throw new Error('Method not implemented.');
     // const data = await this.contract.get()
     // const connectedAccountId: string = this.wallet.getAccountId()
@@ -87,8 +85,9 @@ export class NearDataService implements ContractDataService {
       finality: 'optimistic',
     });
 
-    const res = JSON.parse(Buffer.from((rawResult as any).result).toString());
+    const res: any[] = JSON.parse(Buffer.from((rawResult as any).result).toString());
     console.log(res)
+    return res.map(p => ({...p, id: Number(p.token_id)}))
   }
 
   async getAccountPixel(account: string): Promise<any> {
@@ -101,14 +100,30 @@ export class NearDataService implements ContractDataService {
     throw new Error('Method not implemented.');
   }
 
-  mintPixels(pixel: number, width: number, height: number): void {
-    throw new Error('Method not implemented.');
+  async mintPixels(pixel: number, width: number, height: number): Promise<void> {
+    console.log('mintPixels', pixel, width, height)
+    const acc = this.wallet.account()
+    const cost = 1000 * width * height
+    await acc.functionCall({
+      contractId,
+      args: {
+        token_id: `${pixel}`,
+        width,
+        height,
+        receiver_id: acc.accountId,
+        token_metadata: {},
+      },
+      methodName: 'nft_batch_mint',
+      attachedDeposit: `${cost}` as any
+    })
   }
+
   mergePixels(pixel: number, width: number, height: number): void {
-    throw new Error('Method not implemented.');
+    console.log('mergePixels', pixel, width, height)
   }
+
   pickPixels(pixel: number, width: number, height: number): void {
-    throw new Error('Method not implemented.');
+    console.log('pickPixels', pixel, width, height)
   }
 
 }

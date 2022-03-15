@@ -33,6 +33,7 @@ export const PlatformSelect: React.FC<{}> = () => {
         <MenuItem value={ContractPlatform.Near}>Near</MenuItem>
         <MenuItem value={ContractPlatform.Polygon}>Polygon</MenuItem>
         <MenuItem value={ContractPlatform.Bsc}>Bsc</MenuItem>
+        <MenuItem value={ContractPlatform.Substrate}>Substrate</MenuItem>
       </Select>
     </FormControl>
   )
