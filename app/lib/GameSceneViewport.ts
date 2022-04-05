@@ -16,10 +16,11 @@ export interface GridMapOpts {
   worldHeightPixel: number
   viewWidth: number
   viewHeight: number
+  zoomPan?: boolean
   onSelectOutput?: (selection: SelectionRect) => void
   onMove?: (x: number, y: number) => void
   onClick?: (x: number, y: number) => void
-  zoomPan?: boolean
+  onCustomUpdate?: () => void
 }
 
 type PixelSpriteMap = {[index: number]: Sprite}
@@ -170,6 +171,29 @@ export class GameSceneViewport implements IGameScene {
   }
 
   onUpdate(): void {
+    // handle move
+    // ArrowUp
+    if (this.engine.getKeyPressed('w')) {
+      this.moveViewportUp(6)
+    }
+
+    if (this.engine.getKeyPressed('s')) {
+      this.moveViewportDown(6)
+    }
+
+    if (this.engine.getKeyPressed('a')) {
+      this.moveViewportLeft(6)
+    }
+
+    if (this.engine.getKeyPressed('d')) {
+      this.moveViewportRight(6)
+    }
+
+    // custom update
+    if (this.opts.onCustomUpdate) {
+      this.opts.onCustomUpdate()
+    }
+
     if (this.viewport.dirty) {
       const renderer = this.engine.getRenderer()
       renderer.render(this.viewport)
