@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Sprite } from 'pixi.js'
+import { useRecoilValue } from 'recoil'
 import { DropShadowFilter } from '@pixi/filter-drop-shadow'
 
 import Box from '@mui/material/Box'
@@ -7,8 +8,10 @@ import Button from '@mui/material/Button'
 import ButtonGroup from '@mui/material/ButtonGroup'
 import Typography from '@mui/material/Typography'
 
-import { useContractDataService } from '../hooks'
+// import { useContractDataService } from '../hooks'
 import { coordinateToIndex, GameEngine, GameSceneViewport, indexToCoordinate, iterateSelect, SelectionRect } from '../../lib'
+import { getContractDataService } from '../../services'
+import { platformState } from '../PlatformSelect'
 
 const WORLD_SIZE = 100
 const PIXEL_SIZE = 8
@@ -35,7 +38,8 @@ function undoSpriteFloat(sprite: Sprite) {
 }
 
 export const MainLand: React.FC<{}> = () => {
-  const service = useContractDataService()
+  // const service = useContractDataService()
+  const platform = useRecoilValue(platformState)
   const wrapperRef = useRef<HTMLDivElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const sceneRef = useRef<GameSceneViewport | null>(null)
@@ -45,6 +49,7 @@ export const MainLand: React.FC<{}> = () => {
 
   useEffect(() => {
     (async () => {
+      const service = await getContractDataService(platform)
       if (!service || !wrapperRef.current || !canvasRef.current) { return }
       const width = Number(wrapperRef.current.getBoundingClientRect().width)
       const height = 560
@@ -83,10 +88,11 @@ export const MainLand: React.FC<{}> = () => {
         // pixel.on('pointerout', () => undoSpriteFloat(pixel))
       }
     })()
-  }, [service])
+  }, [platform])
 
   const mint = async () => {
     const mainScene = sceneRef.current
+    const service = await getContractDataService(platform)
     if (service && mainScene) {
       const token = coordinateToIndex(select.x - WORLD_SIZE / 2, select.y - WORLD_SIZE / 2)
       await service.mintPixels(token, select.width, select.height)
@@ -105,6 +111,7 @@ export const MainLand: React.FC<{}> = () => {
 
   const merge = async () => {
     const mainScene = sceneRef.current
+    const service = await getContractDataService(platform)
     if (service && mainScene) {
       const token = coordinateToIndex(select.x - WORLD_SIZE / 2, select.y - WORLD_SIZE / 2)
       await service.mergePixels(token, select.width, select.height)
