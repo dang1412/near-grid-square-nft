@@ -17,8 +17,8 @@ export interface GridMapOpts {
   viewWidth: number
   viewHeight: number
   zoomPan?: boolean
-  onSelectOutput?: (selection: SelectionRect) => void
-  onMove?: (rawX: number, rawY: number, x: number, y: number) => void
+  onSelect?: (clientX: number, clientY: number, selection: SelectionRect) => void
+  onMove?: (clientX: number, clientY: number, x: number, y: number) => void
   onClick?: (x: number, y: number) => void
   onCustomUpdate?: () => void
 }
@@ -32,9 +32,9 @@ export interface IGameScene {
   onOpen(): void
   onClose(): void
   onUpdate(): void
-  onSelect(x1: number, y1: number, x2: number, y2: number): void
-  onSelectEnd(): void
-  onMove(rawX: number, rawY: number, x: number, y: number): void
+  onSelect(clientX: number, clientY: number, x1: number, y1: number, x2: number, y2: number): void
+  onSelectEnd(clientX: number, clientY: number): void
+  onMove(clientX: number, clientY: number, x: number, y: number): void
 }
 
 export class GameSceneViewport implements IGameScene {
@@ -76,10 +76,10 @@ export class GameSceneViewport implements IGameScene {
     this.sceneIndex = engine.addScene(this)
   }
 
-  onMove(rawX: number, rawY: number, x: number, y: number): void {
+  onMove(clientX: number, clientY: number, x: number, y: number): void {
     if (this.opts.onMove) {
       const [xCoord, yCoord] = this.getCoord(x, y)
-      this.opts.onMove(rawX, rawY, xCoord, yCoord)
+      this.opts.onMove(clientX, clientY, xCoord, yCoord)
     }
   }
 
@@ -149,7 +149,7 @@ export class GameSceneViewport implements IGameScene {
     return [xCoord, yCoord]
   }
 
-  onSelect(x1: number, y1: number, x2: number, y2: number): void {
+  onSelect(clientX: number, clientY: number, x1: number, y1: number, x2: number, y2: number): void {
     // add the first time
     if (!this.selectingSprite) {
       this.selectingSprite = new Sprite(Texture.WHITE)
@@ -175,7 +175,27 @@ export class GameSceneViewport implements IGameScene {
       height: y2Coord - y1Coord + 1,
     }
 
-    this.viewport.dirty = true
+    // if (this.opts.onSelect) {
+    //   this.opts.onSelect(clientX, clientY, this.selectingRect)
+    // }
+  }
+
+  onSelectEnd(clientX: number, clientY: number): void {
+    if (this.opts.onSelect) {
+      this.opts.onSelect(clientX, clientY, this.selectingRect)
+    }
+  }
+
+  isSelecting(): boolean {
+    return this.selectingRect && this.selectingRect.width > 0
+  }
+
+  clearSelect() {
+    const rect = this.selectingSprite
+    if (rect) {
+      rect.width = 0
+      rect.height = 0
+    }
   }
 
   onUpdate(): void {
@@ -205,12 +225,6 @@ export class GameSceneViewport implements IGameScene {
     if (this.viewport.dirty) {
       const renderer = this.engine.getRenderer()
       renderer.render(this.viewport)
-    }
-  }
-
-  onSelectEnd(): void {
-    if (this.opts.onSelectOutput) {
-      this.opts.onSelectOutput(this.selectingRect)
     }
   }
 

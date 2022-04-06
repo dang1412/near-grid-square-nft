@@ -2,18 +2,18 @@ import { useEffect, useRef, useState } from 'react'
 import { Sprite } from 'pixi.js'
 import { useRecoilValue } from 'recoil'
 import { DropShadowFilter } from '@pixi/filter-drop-shadow'
+import { VirtualElement } from '@popperjs/core'
 
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import ButtonGroup from '@mui/material/ButtonGroup'
 import Typography from '@mui/material/Typography'
 import Popper from '@mui/material/Popper'
-import Paper from '@mui/material/Paper'
 
 import { coordinateToIndex, GameEngine, GameSceneViewport, indexToCoordinate, iterateSelect, SelectionRect } from '../../lib'
 import { getContractDataService } from '../../services'
 import { platformState } from '../PlatformSelect'
-import { VirtualElement } from '@popperjs/core'
+import { PopperInfo } from './PopperInfo'
 
 const WORLD_SIZE = 100
 const PIXEL_SIZE = 8
@@ -80,18 +80,21 @@ export const MainLand: React.FC<{}> = () => {
         worldHeightPixel: WORLD_SIZE,
         viewWidth: width,
         viewHeight: height,
-        onSelectOutput: (select) => {
-          // const [wx, wy] = gridToWorldCoord(select.x, select.y)
-          // setSelect({...select, x: wx, y: wy})
+        onSelect: (clientX, clientY, select) => {
           setSelect(select)
-          // setOpen(false)
-        },
-        onMove: (rawX, rawY, x, y) => {
-          console.log(x, y)
           setOpen(true)
-          setAnchorEl(getVirtualElement(rawX + 15, rawY + 15))
-          setCursorXCoord(x)
-          setCursorYCoord(y)
+          setAnchorEl(getVirtualElement(clientX + 15, clientY - 30))
+          setCursorXCoord(select.x + select.width)
+          setCursorYCoord(select.y + select.height)
+        },
+        onMove: (clientX, clientY, x, y) => {
+          // only do if not selecting
+          if (mainScene.isSelecting()) return 
+          console.log(x, y)
+          // setOpen(true)
+          // setAnchorEl(getVirtualElement(clientX + 15, clientY + 15))
+          // setCursorXCoord(x)
+          // setCursorYCoord(y)
         }
       })
 
@@ -162,21 +165,36 @@ export const MainLand: React.FC<{}> = () => {
 
   const id = open ? 'virtual-element-popper' : undefined
 
+  const handleMouseLeave = () => {
+    // setOpen(false)
+  }
+
+  const handleCloseSelect = () => {
+    const mainScene = sceneRef.current
+    if (mainScene) {
+      mainScene.clearSelect()
+    }
+    setOpen(false)
+  }
+
   return (
     <div ref={(_c) => wrapperRef.current = _c} style={{width: '100%', maxWidth: 800}}>
       <Typography variant="h4" color="success" style={{textAlign: 'center'}}>
         {totalReward} ETH
       </Typography>
-      <canvas onMouseLeave={() => setOpen(false)} ref={(_c) => canvasRef.current = _c} style={{backgroundColor: 'grey'}} />
+      <canvas onMouseOut={handleMouseLeave} ref={(_c) => canvasRef.current = _c} style={{backgroundColor: 'grey'}} />
       <Popper
         id={id}
         open={open}
         anchorEl={anchorEl}
         placement="bottom-start"
       >
-        <Paper>
-          <Typography sx={{ p: 2 }}>({cursorXCoord}, {cursorYCoord}) Select pixels to mint.</Typography>
-        </Paper>
+        <PopperInfo
+          xCoord={cursorXCoord}
+          yCoord={cursorYCoord}
+          selecting={select.width * select.height}
+          onClose={handleCloseSelect}
+        />
       </Popper>
       <Box style={{ display: 'flex' }} sx={{ border: 1, p: 1, bgcolor: 'background.paper' }}>
         Selected: {`(${select.x}, ${select.y}), [${select.width} x ${select.height}]`}
