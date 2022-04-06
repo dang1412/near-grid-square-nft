@@ -95,6 +95,13 @@ export class GameEngine {
       scene.onSelect(x1, y1, x2, y2)
     }
 
+    const onMove = (rawX: number, rawY: number, x: number, y: number) => {
+      const scene = this.getCurrentScene()
+      if (!scene) { return }
+
+      scene.onMove(rawX, rawY, x, y)
+    }
+
     canvas.addEventListener('mousedown', (e) => {
       [startX, startY] = getXY(e)
       onSelect(startX, startY, startX, startY)
@@ -112,10 +119,11 @@ export class GameEngine {
     })
 
     canvas.addEventListener('mousemove', (e) => {
+      const [x, y] = getXY(e)
       if (selecting) {
-        const [endX, endY] = getXY(e)
-        onSelect(startX, startY, endX, endY)
+        onSelect(startX, startY, x, y)
       }
+      onMove(e.x, e.y, x, y)
     })
   }
 

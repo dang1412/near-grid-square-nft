@@ -7,11 +7,13 @@ import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import ButtonGroup from '@mui/material/ButtonGroup'
 import Typography from '@mui/material/Typography'
+import Popper from '@mui/material/Popper'
+import Paper from '@mui/material/Paper'
 
-// import { useContractDataService } from '../hooks'
 import { coordinateToIndex, GameEngine, GameSceneViewport, indexToCoordinate, iterateSelect, SelectionRect } from '../../lib'
 import { getContractDataService } from '../../services'
 import { platformState } from '../PlatformSelect'
+import { VirtualElement } from '@popperjs/core'
 
 const WORLD_SIZE = 100
 const PIXEL_SIZE = 8
@@ -35,6 +37,22 @@ function undoSpriteFloat(sprite: Sprite) {
   sprite.position.x += move
   sprite.position.y += move
   sprite.filters = []
+}
+
+function getVirtualElement(x: number, y: number): VirtualElement {
+  return {
+    getBoundingClientRect: () => ({
+      width: 0,
+      height: 0,
+      top: y,
+      right: x,
+      bottom: y,
+      left: x,
+      x: x,
+      y: y,
+      toJSON: () => {}
+    })
+  }
 }
 
 export const MainLand: React.FC<{}> = () => {
@@ -66,6 +84,14 @@ export const MainLand: React.FC<{}> = () => {
           // const [wx, wy] = gridToWorldCoord(select.x, select.y)
           // setSelect({...select, x: wx, y: wy})
           setSelect(select)
+          // setOpen(false)
+        },
+        onMove: (rawX, rawY, x, y) => {
+          console.log(x, y)
+          setOpen(true)
+          setAnchorEl(getVirtualElement(rawX + 15, rawY + 15))
+          setCursorXCoord(x)
+          setCursorYCoord(y)
         }
       })
 
@@ -129,12 +155,29 @@ export const MainLand: React.FC<{}> = () => {
     }
   }
 
+  const [open, setOpen] = useState(false)
+  const [anchorEl, setAnchorEl] = useState<VirtualElement>(getVirtualElement(0, 0))
+  const [cursorXCoord, setCursorXCoord] = useState(0)
+  const [cursorYCoord, setCursorYCoord] = useState(0)
+
+  const id = open ? 'virtual-element-popper' : undefined
+
   return (
     <div ref={(_c) => wrapperRef.current = _c} style={{width: '100%', maxWidth: 800}}>
       <Typography variant="h4" color="success" style={{textAlign: 'center'}}>
         {totalReward} ETH
       </Typography>
-        <canvas ref={(_c) => canvasRef.current = _c} style={{backgroundColor: 'grey'}} />
+      <canvas onMouseLeave={() => setOpen(false)} ref={(_c) => canvasRef.current = _c} style={{backgroundColor: 'grey'}} />
+      <Popper
+        id={id}
+        open={open}
+        anchorEl={anchorEl}
+        placement="bottom-start"
+      >
+        <Paper>
+          <Typography sx={{ p: 2 }}>({cursorXCoord}, {cursorYCoord}) Select pixels to mint.</Typography>
+        </Paper>
+      </Popper>
       <Box style={{ display: 'flex' }} sx={{ border: 1, p: 1, bgcolor: 'background.paper' }}>
         Selected: {`(${select.x}, ${select.y}), [${select.width} x ${select.height}]`}
         <span style={{ flexGrow: 1 }} />

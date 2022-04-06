@@ -18,7 +18,7 @@ export interface GridMapOpts {
   viewHeight: number
   zoomPan?: boolean
   onSelectOutput?: (selection: SelectionRect) => void
-  onMove?: (x: number, y: number) => void
+  onMove?: (rawX: number, rawY: number, x: number, y: number) => void
   onClick?: (x: number, y: number) => void
   onCustomUpdate?: () => void
 }
@@ -34,6 +34,7 @@ export interface IGameScene {
   onUpdate(): void
   onSelect(x1: number, y1: number, x2: number, y2: number): void
   onSelectEnd(): void
+  onMove(rawX: number, rawY: number, x: number, y: number): void
 }
 
 export class GameSceneViewport implements IGameScene {
@@ -73,6 +74,13 @@ export class GameSceneViewport implements IGameScene {
     })
 
     this.sceneIndex = engine.addScene(this)
+  }
+
+  onMove(rawX: number, rawY: number, x: number, y: number): void {
+    if (this.opts.onMove) {
+      const [xCoord, yCoord] = this.getCoord(x, y)
+      this.opts.onMove(rawX, rawY, xCoord, yCoord)
+    }
   }
 
   onOpen(): void {
