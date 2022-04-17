@@ -50,8 +50,9 @@ export async function getContractDataService(platform: ContractPlatform): Promis
 export * from './utils'
 
 export interface Pixel {
-  id: string
-  width: number
-  height: number
-  mergedTo?: string
+  pixelId: number
+  image?: string
+  price?: number
+  owner: string
+  dateMinted: string
 }

@@ -7,6 +7,7 @@ import { TypeRegistry } from '@polkadot/types/create'
 import { KeyringPair } from '@polkadot/keyring/types'
 
 import { ContractDataService, Pixel } from '..'
+import { coordinateToIndex, indexToCoordinate } from '../../lib'
 
 const config = {
   APP_NAME: 'substrate-front-end-template',
@@ -81,10 +82,12 @@ const loadAccounts = (api: ApiPromise, keyringStateUpdate: (state: KeyringState)
 
 function rawObjToPixel(obj: {[key: string]: any}): Pixel {
   return {
-    id: obj.id,
-    width: Number(obj.width),
-    height: Number(obj.height),
-    mergedTo: obj.mergedTo
+    pixelId: Number(obj.pixelId),
+    // width: Number(obj.width),
+    // height: Number(obj.height),
+    // mergedTo: obj.mergedTo
+    owner: obj.owner,
+    dateMinted: obj.dateMinted,
   }
 }
 
@@ -139,14 +142,16 @@ export class SubstrateDataService implements ContractDataService {
 
   async getPixels(): Promise<Pixel[]> {
     await this._api.isReady
-    const entries = await this._api.query.substratePixel.pixels.entries()
+    const entries = await this._api.query.pixelModule.pixels.entries()
+    console.log('entries', entries)
     const pixels = entries.map(([{ args }, value]) => {
       const raw: any = value.toHuman()
       return rawObjToPixel(raw)
     })
 
     console.log(pixels)
-    return pixels.filter(p => !p.mergedTo)
+    return pixels
+    // return pixels.filter(p => !p.mergedTo)
   }
 
   getAccountPixel(account: string): Promise<any> {
@@ -158,11 +163,22 @@ export class SubstrateDataService implements ContractDataService {
   getAccountPickedPixels(account: string): Promise<any> {
     throw new Error('Method not implemented.');
   }
-  
+
   async mintPixels(pixel: number, width: number, height: number) {
     if (this._acc) {
       console.log('mint', pixel, width, height)
-      await this._api.tx.substratePixel.mintPixel(pixel, width, height).signAndSend(this._acc, (rs) => {
+      const pixelIds = []
+      let [x, y] = indexToCoordinate(pixel)
+      for (let i = 0; i < width; i++) {
+        for (let j = 0; j < height; j++) {
+          const pixelId = coordinateToIndex(x + i, y + j)
+          pixelIds.push(pixelId)
+        }
+      }
+
+      console.log('batchMintPixels', pixelIds)
+
+      await this._api.tx.pixelModule.batchMintPixels(pixelIds).signAndSend(this._acc, (rs) => {
         console.log(rs)
       })
     }
@@ -173,7 +189,7 @@ export class SubstrateDataService implements ContractDataService {
     // throw new Error('Method not implemented.');
     if (this._acc) {
       console.log('merge', pixel, width, height)
-      await this._api.tx.substratePixel.mergePixel(pixel, width, height).signAndSend(this._acc, (rs) => {
+      await this._api.tx.pixelModule.mergePixel(pixel, width, height).signAndSend(this._acc, (rs) => {
         console.log(rs)
       })
     }
