@@ -11,8 +11,9 @@ import Typography from '@mui/material/Typography'
 import Popper from '@mui/material/Popper'
 
 import { coordinateToIndex, GameEngine, GameSceneViewport, indexToCoordinate, iterateSelect, SelectionRect } from '../../lib'
-import { getContractDataService } from '../../services'
+import { getContractDataService, type Pixel } from '../../services'
 import { platformState } from '../PlatformSelect'
+import { usePixelData } from '../hooks'
 import { PopperInfo } from './PopperInfo'
 
 const WORLD_SIZE = 100
@@ -55,6 +56,22 @@ function getVirtualElement(x: number, y: number): VirtualElement {
   }
 }
 
+function reflectPixels(scene: GameSceneViewport, pixels: Pixel[]) {
+  for (const pixel of pixels) {
+    const [wx, wy] = indexToCoordinate(Number(pixel.pixelId))
+    const [x, y] = [wx + WORLD_SIZE / 2, wy + WORLD_SIZE / 2]
+    const pixelSprite = scene.addGridSprite(x, y, 'mint')
+    // pixel.width = PIXEL_SIZE * token.width
+    // pixel.height = PIXEL_SIZE * token.height
+    pixelSprite.tint = 0xababab
+    pixelSprite.alpha = 0.6
+
+    // pixel.interactive = true
+    // pixel.on('mouseover', () => makeSpriteFloat(pixel))
+    // pixel.on('pointerout', () => undoSpriteFloat(pixel))
+  }
+}
+
 export const MainLand: React.FC<{}> = () => {
   const platform = useRecoilValue(platformState)
   const wrapperRef = useRef<HTMLDivElement | null>(null)
@@ -63,6 +80,8 @@ export const MainLand: React.FC<{}> = () => {
 
   const [select, setSelect] = useState<SelectionRect>({x: 0, y: 0, width: 0, height: 0})
   const [totalReward, setTotalReward] = useState('1000')
+
+  const { pixelMap, loadPixels } = usePixelData(platform)
 
   useEffect(() => {
     (async () => {
@@ -98,25 +117,19 @@ export const MainLand: React.FC<{}> = () => {
       })
 
       engine.changeScene(mainScene.sceneIndex)
-
       sceneRef.current = mainScene
 
-      const tokens = await service.getPixels()
-      for (const token of tokens) {
-        const [wx, wy] = indexToCoordinate(Number(token.pixelId))
-        const [x, y] = [wx + WORLD_SIZE / 2, wy + WORLD_SIZE / 2]
-        const pixel = mainScene.addGridSprite(x, y, 'mint')
-        // pixel.width = PIXEL_SIZE * token.width
-        // pixel.height = PIXEL_SIZE * token.height
-        pixel.tint = 0xababab
-        pixel.alpha = 0.6
-
-        // pixel.interactive = true
-        // pixel.on('mouseover', () => makeSpriteFloat(pixel))
-        // pixel.on('pointerout', () => undoSpriteFloat(pixel))
-      }
+      await loadPixels()
     })()
   }, [platform])
+
+  // reflect minted pixels on map
+  useEffect(() => {
+    const mainScene = sceneRef.current
+    if (mainScene) {
+      reflectPixels(mainScene, Object.values(pixelMap))
+    }
+  }, [pixelMap])
 
   const mint = async () => {
     const mainScene = sceneRef.current
@@ -189,8 +202,8 @@ export const MainLand: React.FC<{}> = () => {
         placement="bottom-start"
       >
         <PopperInfo
-          xCoord={cursorXCoord}
-          yCoord={cursorYCoord}
+          x={cursorXCoord}
+          y={cursorYCoord}
           w={select.width}
           h={select.height}
           onClose={handleCloseSelect}
