@@ -56,7 +56,6 @@ function getVirtualElement(x: number, y: number): VirtualElement {
 }
 
 export const MainLand: React.FC<{}> = () => {
-  // const service = useContractDataService()
   const platform = useRecoilValue(platformState)
   const wrapperRef = useRef<HTMLDivElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -84,13 +83,13 @@ export const MainLand: React.FC<{}> = () => {
           setSelect(select)
           setOpen(true)
           setAnchorEl(getVirtualElement(clientX + 15, clientY - 30))
-          setCursorXCoord(select.x + select.width)
-          setCursorYCoord(select.y + select.height)
+          setCursorXCoord(select.x - WORLD_SIZE / 2)
+          setCursorYCoord(select.y - WORLD_SIZE / 2)
         },
         onMove: (clientX, clientY, x, y) => {
           // only do if not selecting
           if (mainScene.isSelecting()) return 
-          console.log(x, y)
+          // console.log(x, y)
           // setOpen(true)
           // setAnchorEl(getVirtualElement(clientX + 15, clientY + 15))
           // setCursorXCoord(x)
@@ -104,13 +103,13 @@ export const MainLand: React.FC<{}> = () => {
 
       const tokens = await service.getPixels()
       for (const token of tokens) {
-        const [wx, wy] = indexToCoordinate(Number(token.id))
+        const [wx, wy] = indexToCoordinate(Number(token.pixelId))
         const [x, y] = [wx + WORLD_SIZE / 2, wy + WORLD_SIZE / 2]
         const pixel = mainScene.addGridSprite(x, y, 'mint')
-        pixel.width = PIXEL_SIZE * token.width
-        pixel.height = PIXEL_SIZE * token.height
+        // pixel.width = PIXEL_SIZE * token.width
+        // pixel.height = PIXEL_SIZE * token.height
         pixel.tint = 0xababab
-        pixel.alpha = token.width * token.height > 1 ? 0.8 : 0.6
+        pixel.alpha = 0.6
 
         // pixel.interactive = true
         // pixel.on('mouseover', () => makeSpriteFloat(pixel))
@@ -138,25 +137,25 @@ export const MainLand: React.FC<{}> = () => {
     }
   }
 
-  const merge = async () => {
-    const mainScene = sceneRef.current
-    const service = await getContractDataService(platform)
-    if (service && mainScene) {
-      const token = coordinateToIndex(select.x - WORLD_SIZE / 2, select.y - WORLD_SIZE / 2)
-      await service.mergePixels(token, select.width, select.height)
+  // const merge = async () => {
+  //   const mainScene = sceneRef.current
+  //   const service = await getContractDataService(platform)
+  //   if (service && mainScene) {
+  //     const token = coordinateToIndex(select.x - WORLD_SIZE / 2, select.y - WORLD_SIZE / 2)
+  //     await service.mergePixels(token, select.width, select.height)
 
-      const pixel = mainScene.addGridSprite(select.x, select.y, 'mint')
-      pixel.width = PIXEL_SIZE * select.width
-      pixel.height = PIXEL_SIZE * select.height
-      pixel.alpha = 0.8
+  //     const pixel = mainScene.addGridSprite(select.x, select.y, 'mint')
+  //     pixel.width = PIXEL_SIZE * select.width
+  //     pixel.height = PIXEL_SIZE * select.height
+  //     pixel.alpha = 0.8
 
-      iterateSelect(select, (x, y) => {
-        if (x === select.x && y === select.y) { return }
-        const pixel = mainScene.addGridSprite(x, y, 'mint')
-        pixel.parent.removeChild(pixel)
-      })
-    }
-  }
+  //     iterateSelect(select, (x, y) => {
+  //       if (x === select.x && y === select.y) { return }
+  //       const pixel = mainScene.addGridSprite(x, y, 'mint')
+  //       pixel.parent.removeChild(pixel)
+  //     })
+  //   }
+  // }
 
   const [open, setOpen] = useState(false)
   const [anchorEl, setAnchorEl] = useState<VirtualElement>(getVirtualElement(0, 0))
@@ -192,16 +191,18 @@ export const MainLand: React.FC<{}> = () => {
         <PopperInfo
           xCoord={cursorXCoord}
           yCoord={cursorYCoord}
-          selecting={select.width * select.height}
+          w={select.width}
+          h={select.height}
           onClose={handleCloseSelect}
+          onMintClick={mint}
         />
       </Popper>
       <Box style={{ display: 'flex' }} sx={{ border: 1, p: 1, bgcolor: 'background.paper' }}>
         Selected: {`(${select.x}, ${select.y}), [${select.width} x ${select.height}]`}
         <span style={{ flexGrow: 1 }} />
         <ButtonGroup variant="outlined" aria-label="outlined primary button group">
-          <Button onClick={mint} size="small">Mint</Button>
-          <Button onClick={merge} size="small">Merge</Button>
+          {/* <Button onClick={mint} size="small">Mint</Button>
+          <Button onClick={merge} size="small">Merge</Button> */}
           {/* <Button size="small" component="label">
             Image <input id="chooseImage" hidden type="file" onChange={setImage} />
             </Button>

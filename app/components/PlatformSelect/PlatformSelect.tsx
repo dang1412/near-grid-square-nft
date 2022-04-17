@@ -9,7 +9,7 @@ import { ContractPlatform } from '../../services'
 
 export const platformState = atom({
   key: 'contractPlatform',
-  default: ContractPlatform.Near
+  default: ContractPlatform.Substrate
 })
 
 export const PlatformSelect: React.FC<{}> = () => {
