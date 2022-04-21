@@ -1,23 +1,32 @@
 import { atom, useRecoilState } from 'recoil'
 
-import { ContractPlatform, getContractDataService } from '../../services'
-// import { accountState } from '../TopBar/AccountMenu'
+import { ContractPlatform, getContractDataService, type Account } from '../../services'
 
-export const accountState = atom({
+export const accountState = atom<Account | null>({
   key: 'accountState',
-  default: ''
+  default: null
 })
 
-export function useLogin(platform: ContractPlatform): [Function, Function, Function, string, Function] {
+interface LoginHook {
+  login: () => Promise<void>,
+  setIfLogin: () => Promise<void>,
+  logout: () => Promise<void>,
+  account: Account | null,
+  setAccount: Function,
+  accounts: Account[],
+}
+
+let accounts: Account[] = []
+
+export function useLogin(platform: ContractPlatform): LoginHook {
   const [account, setAccount] = useRecoilState(accountState)
 
   const setIfLogin = async () => {
     const service = await getContractDataService(platform)
     if (service) {
-      const account = service.getAuthorizedAccountId()
+      const account = service.getCurrentAccount()
+      accounts = service.getAccounts()
       setAccount(account)
-    } else {
-      setAccount('')
     }
   }
 
@@ -30,12 +39,12 @@ export function useLogin(platform: ContractPlatform): [Function, Function, Funct
   }
 
   const logout = async () => {
-    setAccount('')
     const service = await getContractDataService(platform)
     if (service) {
       service.signOut()
     }
+    setAccount(null)
   }
 
-  return [login, setIfLogin, logout, account, setAccount]
+  return { login, setIfLogin, logout, account, setAccount, accounts }
 }

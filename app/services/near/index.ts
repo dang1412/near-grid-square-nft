@@ -1,6 +1,6 @@
-import { connect, keyStores, type Near, type ConnectConfig, WalletConnection, Account, providers, utils } from 'near-api-js'
+import { connect, keyStores, type Near, type ConnectConfig, WalletConnection, providers, utils, Account as NearAccount } from 'near-api-js'
 
-import { ContractDataService, Pixel } from '..'
+import { type Account, ContractDataService, Pixel } from '..'
 
 const keyStore = new keyStores.BrowserLocalStorageKeyStore()
 const contractId = 'pixelland.dang1412.testnet'
@@ -28,7 +28,7 @@ export class NearDataService implements ContractDataService {
   private wallet: WalletConnection
   // private contract: Contract
 
-  constructor(private near: Near, rootAcc: Account) {
+  constructor(private near: Near, rootAcc: NearAccount) {
     this.wallet = new WalletConnection(near, '')
     // let t = new Contract(
     //   rootAcc,
@@ -42,12 +42,12 @@ export class NearDataService implements ContractDataService {
     // t.
   }
 
-  async getBalance(account: string): Promise<number> {
+  async getBalance(account: string): Promise<string> {
     const acc = await this.near.account(account)
     const balance = await acc.getAccountBalance()
     console.log(balance)
 
-    return Number(utils.format.formatNearAmount(balance.available))
+    return utils.format.formatNearAmount(balance.available)
   }
 
   async signIn(): Promise<void> {
@@ -58,8 +58,15 @@ export class NearDataService implements ContractDataService {
     this.wallet.signOut()
   }
 
-  getAuthorizedAccountId(): string {
-    return this.wallet.getAccountId()
+  getCurrentAccount(): Account | null {
+    // return this.wallet.getAccountId()
+    return null
+  }
+
+  setCurrentAccount(account: Account) {}
+
+  getAccounts(): Account[] {
+    return []
   }
 
   async login(): Promise<void> {

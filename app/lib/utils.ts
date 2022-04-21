@@ -80,3 +80,14 @@ export function iterateSelect(select: SelectionRect, cb: (x:number, y: number) =
     }
   }
 }
+
+export function getIndexArray(index: number, width: number, height: number): number[] {
+  const indexArray: number[] = []
+  const [x, y] = indexToCoordinate(index)
+  iterateSelect({x, y, width, height}, (x, y) => {
+    const index = coordinateToIndex(x, y)
+    indexArray.push(index)
+  })
+
+  return indexArray
+}

@@ -33,7 +33,7 @@ export const PopperInfo: React.FC<PopperInfoProps> = (props) => {
   const { x, y, w, h, onClose = () => {}, onMintClick, onPickClick } = props
 
   const platform = useRecoilValue(platformState)
-  const [login, _, __, account] = useLogin(platform)
+  const {login, account} = useLogin(platform)
 
   const { pixelMap } = usePixelData(platform)
 
@@ -68,7 +68,10 @@ export const PopperInfo: React.FC<PopperInfoProps> = (props) => {
       </IconButton>
       {pixelInfo ? (
         <>
-          Minted: {pixelInfo.pixelId}
+          <Typography sx={{ p: 2 }}>
+            Minted: {pixelInfo.pixelId}<br/>
+            Owner: {pixelInfo.owner}
+          </Typography>
         </>
       ) : (
         <>

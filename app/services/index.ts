@@ -1,11 +1,14 @@
+import { Account, Pixel } from './types'
 import { ContractPlatform } from './utils'
 
 export interface ContractDataService {
   // account
   signIn(): Promise<void>
   signOut(): void
-  getAuthorizedAccountId(): string
-  getBalance(account: string): Promise<number>
+  getAccounts(): Account[]
+  getCurrentAccount(): Account | null
+  setCurrentAccount(account: Account): void
+  getBalance(account: string): Promise<string>
 
   // read
   getPixels(): Promise<Pixel[]>
@@ -48,11 +51,4 @@ export async function getContractDataService(platform: ContractPlatform): Promis
 }
 
 export * from './utils'
-
-export interface Pixel {
-  pixelId: number
-  image?: string
-  price?: number
-  owner: string
-  dateMinted: string
-}
+export * from './types'

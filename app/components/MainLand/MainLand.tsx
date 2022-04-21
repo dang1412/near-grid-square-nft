@@ -11,9 +11,9 @@ import Typography from '@mui/material/Typography'
 import Popper from '@mui/material/Popper'
 
 import { coordinateToIndex, GameEngine, GameSceneViewport, indexToCoordinate, iterateSelect, SelectionRect } from '../../lib'
-import { getContractDataService, type Pixel } from '../../services'
+import { Account, getContractDataService, type Pixel } from '../../services'
 import { platformState } from '../PlatformSelect'
-import { usePixelData } from '../hooks'
+import { useLogin, usePixelData } from '../hooks'
 import { PopperInfo } from './PopperInfo'
 
 const WORLD_SIZE = 100
@@ -56,20 +56,28 @@ function getVirtualElement(x: number, y: number): VirtualElement {
   }
 }
 
-function reflectPixels(scene: GameSceneViewport, pixels: Pixel[]) {
+// reflect all minted pixels on map
+function reflectPixels(scene: GameSceneViewport, pixels: Pixel[], account: Account | null) {
   for (const pixel of pixels) {
     const [wx, wy] = indexToCoordinate(Number(pixel.pixelId))
     const [x, y] = [wx + WORLD_SIZE / 2, wy + WORLD_SIZE / 2]
-    const pixelSprite = scene.addGridSprite(x, y, 'mint')
-    // pixel.width = PIXEL_SIZE * token.width
-    // pixel.height = PIXEL_SIZE * token.height
-    pixelSprite.tint = 0xababab
-    pixelSprite.alpha = 0.6
+    reflectPixelCoordinate(scene, x, y, !!account && account.addr === pixel.owner)
 
     // pixel.interactive = true
     // pixel.on('mouseover', () => makeSpriteFloat(pixel))
     // pixel.on('pointerout', () => undoSpriteFloat(pixel))
   }
+}
+
+// reflect a minted pixel on map
+function reflectPixelCoordinate(scene: GameSceneViewport, x: number, y: number, isOwner: boolean) {
+  const pixelSprite = scene.addGridSprite(x, y, 'mint')
+  if (isOwner) {
+    pixelSprite.tint = 0xfce303
+  } else {
+    pixelSprite.tint = 0xababab
+  }
+  pixelSprite.alpha = 0.6
 }
 
 export const MainLand: React.FC<{}> = () => {
@@ -82,16 +90,23 @@ export const MainLand: React.FC<{}> = () => {
   const [totalReward, setTotalReward] = useState('1000')
 
   const { pixelMap, loadPixels } = usePixelData(platform)
+  const { account } = useLogin(platform)
 
   useEffect(() => {
     (async () => {
+      // Service
       const service = await getContractDataService(platform)
       if (!service || !wrapperRef.current || !canvasRef.current) { return }
+
+      // Map params
       const width = Number(wrapperRef.current.getBoundingClientRect().width)
-      const height = 560
+      const height = 600
       const canvas = canvasRef.current
 
+      // Engine
       const engine = new GameEngine(canvas, { width, height })
+
+      // Map scene
       const mainScene = new GameSceneViewport(engine, {
         pixelSize: PIXEL_SIZE,
         worldWidthPixel: WORLD_SIZE,
@@ -116,7 +131,10 @@ export const MainLand: React.FC<{}> = () => {
         }
       })
 
+      // switch to the main scene
       engine.changeScene(mainScene.sceneIndex)
+
+      // store the main scene object
       sceneRef.current = mainScene
 
       await loadPixels()
@@ -127,10 +145,11 @@ export const MainLand: React.FC<{}> = () => {
   useEffect(() => {
     const mainScene = sceneRef.current
     if (mainScene) {
-      reflectPixels(mainScene, Object.values(pixelMap))
+      reflectPixels(mainScene, Object.values(pixelMap), account)
     }
-  }, [pixelMap])
+  }, [pixelMap, account])
 
+  // mint pixels
   const mint = async () => {
     const mainScene = sceneRef.current
     const service = await getContractDataService(platform)
@@ -139,37 +158,24 @@ export const MainLand: React.FC<{}> = () => {
       await service.mintPixels(token, select.width, select.height)
 
       iterateSelect(select, (x, y) => {
-        const pixel = mainScene.addGridSprite(x, y, 'mint')
-        pixel.tint = 0xababab
-        pixel.alpha = 0.6
-
-        // pixel.interactive = true
-        // pixel.on('mouseover', () => makeSpriteFloat(pixel))
-        // pixel.on('pointerout', () => undoSpriteFloat(pixel))
+        reflectPixelCoordinate(mainScene, x, y, true)
       })
+
+      // TODO update pixelMap
     }
   }
 
-  // const merge = async () => {
-  //   const mainScene = sceneRef.current
-  //   const service = await getContractDataService(platform)
-  //   if (service && mainScene) {
-  //     const token = coordinateToIndex(select.x - WORLD_SIZE / 2, select.y - WORLD_SIZE / 2)
-  //     await service.mergePixels(token, select.width, select.height)
+  // pick lottery tickets
+  const pick = async () => {
+    const mainScene = sceneRef.current
+    const service = await getContractDataService(platform)
+    if (service && mainScene) {
+      const pixel = coordinateToIndex(select.x - WORLD_SIZE / 2, select.y - WORLD_SIZE / 2)
+      await service.pickPixels(pixel, select.width, select.height)
+    }
+  }
 
-  //     const pixel = mainScene.addGridSprite(select.x, select.y, 'mint')
-  //     pixel.width = PIXEL_SIZE * select.width
-  //     pixel.height = PIXEL_SIZE * select.height
-  //     pixel.alpha = 0.8
-
-  //     iterateSelect(select, (x, y) => {
-  //       if (x === select.x && y === select.y) { return }
-  //       const pixel = mainScene.addGridSprite(x, y, 'mint')
-  //       pixel.parent.removeChild(pixel)
-  //     })
-  //   }
-  // }
-
+  // Popper state
   const [open, setOpen] = useState(false)
   const [anchorEl, setAnchorEl] = useState<VirtualElement>(getVirtualElement(0, 0))
   const [cursorXCoord, setCursorXCoord] = useState(0)
@@ -177,13 +183,16 @@ export const MainLand: React.FC<{}> = () => {
 
   const id = open ? 'virtual-element-popper' : undefined
 
+  // mouse leave the canvas
   const handleMouseLeave = () => {
     // setOpen(false)
   }
 
+  // handle close popper
   const handleCloseSelect = () => {
     const mainScene = sceneRef.current
     if (mainScene) {
+      // clear select
       mainScene.clearSelect()
     }
     setOpen(false)
@@ -208,6 +217,7 @@ export const MainLand: React.FC<{}> = () => {
           h={select.height}
           onClose={handleCloseSelect}
           onMintClick={mint}
+          onPickClick={pick}
         />
       </Popper>
       <Box style={{ display: 'flex' }} sx={{ border: 1, p: 1, bgcolor: 'background.paper' }}>
