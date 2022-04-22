@@ -6,7 +6,7 @@ import { isTestChain } from '@polkadot/util'
 import { TypeRegistry } from '@polkadot/types/create'
 import { KeyringPair } from '@polkadot/keyring/types'
 
-import { Account, ContractDataService, Pixel } from '..'
+import { Account, ContractDataService, PickCount, Pixel } from '..'
 import { coordinateToIndex, getIndexArray, indexToCoordinate } from '../../lib'
 
 const config = {
@@ -114,24 +114,24 @@ export class SubstrateDataService implements ContractDataService {
   private _onApiReady() {
     this._apiState = ApiState.READY
     console.log('_onApiReady')
-    this._api.query.system.events((events: any) => {
-      console.log(`\nReceived ${events.length} events:`, events);
-      // Loop through the Vec<EventRecord>
-    events.forEach((record: any) => {
-      // Extract the phase, event and the event types
-      const { event, phase } = record;
-      const types = event.typeDef;
+    // this._api.query.system.events((events: any) => {
+    //   console.log(`\nReceived ${events.length} events:`, events);
+    //   // Loop through the Vec<EventRecord>
+    //   events.forEach((record: any) => {
+    //     // Extract the phase, event and the event types
+    //     const { event, phase } = record;
+    //     const types = event.typeDef;
 
-      // Show what we are busy with
-      console.log(`\t${event.section}:${event.method}:: (phase=${phase.toString()})`);
-      console.log(`\t\t${event.meta.toString()}`);
+    //     // Show what we are busy with
+    //     console.log(`\t${event.section}:${event.method}:: (phase=${phase.toString()})`);
+    //     console.log(`\t\t${event.meta.toString()}`);
 
-      // Loop through each of the parameters, displaying the type and data
-      event.data.forEach((data: any, index: any) => {
-        console.log(`\t\t\t${types[index].type}: ${data.toString()}`);
-      });
-    });
-    })
+    //     // Loop through each of the parameters, displaying the type and data
+    //     event.data.forEach((data: any, index: any) => {
+    //       console.log(`\t\t\t${types[index].type}: ${data.toString()}`);
+    //     });
+    //   });
+    // })
   }
 
   async signIn(): Promise<void> {
@@ -179,49 +179,69 @@ export class SubstrateDataService implements ContractDataService {
   async getPixels(): Promise<Pixel[]> {
     await this._api.isReady
     const entries = await this._api.query.pixelModule.pixels.entries()
-    console.log('entries', entries)
     const pixels = entries.map(([{ args }, value]) => {
       const raw = value.toHuman() as any
       return rawObjToPixel(raw)
     })
 
-    console.log(pixels)
     return pixels
   }
 
-  getAccountPixel(account: string): Promise<any> {
+  async getLotteryIndex(): Promise<number> {
+    await this._api.isReady
+    const raw = await this._api.query.lotteryModule.lotteryIndex()
+    const index = raw.toHuman() as number
+
+    return index
+  }
+
+  async getLotteryAccount(): Promise<string> {
     throw new Error('Method not implemented.');
   }
-  getPickedPixels(): Promise<any> {
+
+  async getAccountPixel(account: string): Promise<any> {
     throw new Error('Method not implemented.');
   }
-  getAccountPickedPixels(account: string): Promise<any> {
-    throw new Error('Method not implemented.');
+
+  async getPickedPixels(): Promise<PickCount[]> {
+    const index = await this.getLotteryIndex()
+    const pickData = await this._api.query.lotteryModule.pixelPickCnt.entries(index)
+    const picks: PickCount[] = pickData.map(([{ args }, value]) => {
+      const [indexRaw, pixelIdRaw] = args
+
+      const pixelId = Number((pixelIdRaw.toHuman() as string).replace(/,/g, ''))
+      const count = Number(value.toHuman() as string)
+
+      return {
+        pixelId,
+        count
+      }
+    })
+
+    return picks
+  }
+
+  async getAccountPickedPixels(account: string): Promise<number[]> {
+    const index = await this.getLotteryIndex()
+    const raw = await this._api.query.lotteryModule.accountPicks(index, account)
+    const pickStrArray = raw.toHuman() as string[]
+
+    const picks = pickStrArray.map(str => Number(str.replace(/,/g, '')))
+    console.log(raw.toHuman())
+
+    return picks
   }
 
   async mintPixels(pixel: number, width: number, height: number) {
     if (this.currentAccount) {
-      console.log('mint', pixel, width, height)
       const pixelIds = getIndexArray(pixel, width, height)
-      // let [x, y] = indexToCoordinate(pixel)
-      // for (let i = 0; i < width; i++) {
-      //   for (let j = 0; j < height; j++) {
-      //     const pixelId = coordinateToIndex(x + i, y + j)
-      //     pixelIds.push(pixelId)
-      //   }
-      // }
-
-      console.log('batchMintPixels', pixelIds, this.currentAccount)
-
-      // finds an injector for an address
-      // const injector = await web3FromAddress(this._acc.address);
+      console.log('mint', pixel, width, height, pixelIds, this.currentAccount)
       const pair = Keyring.getPair(this.currentAccount.addr)
 
       await this._api.tx.pixelModule.batchMintPixels(pixelIds).signAndSend(pair, (rs) => {
         console.log(rs)
       })
     }
-    // throw new Error('Method not implemented.');
   }
 
   async mergePixels(pixel: number, width: number, height: number) {

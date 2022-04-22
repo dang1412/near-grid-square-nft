@@ -97,6 +97,14 @@ export class NearDataService implements ContractDataService {
     return res.map(p => ({...p, id: Number(p.token_id)}))
   }
 
+  async getLotteryIndex(): Promise<number> {
+    throw new Error('Method not implemented.');
+  }
+
+  async getLotteryAccount(): Promise<string> {
+    throw new Error('Method not implemented.');
+  }
+
   async getAccountPixel(account: string): Promise<any> {
   }
 

@@ -1,8 +1,9 @@
+import { useState } from 'react'
 import { atom, useRecoilState } from 'recoil'
 
 import { ContractPlatform, getContractDataService, type Pixel } from '../../services'
 
-type PixelMap = {[pixelId: number]: Pixel}
+export type PixelMap = {[pixelId: number]: Pixel}
 
 export const pixelState = atom<PixelMap>({
   key: 'pixelState',
@@ -11,7 +12,8 @@ export const pixelState = atom<PixelMap>({
 
 interface PixelHook {
   pixelMap: PixelMap
-  loadPixels: () => any
+  loadPixels: () => void
+  updatePixelMap: (update: PixelMap) => void
 }
 
 export function usePixelData(platform: ContractPlatform): PixelHook {
@@ -28,5 +30,9 @@ export function usePixelData(platform: ContractPlatform): PixelHook {
     setPixelMap(pMap)
   }
 
-  return { pixelMap, loadPixels }
+  const updatePixelMap = (update: PixelMap) => {
+    setPixelMap({...pixelMap, ...update})
+  }
+
+  return { pixelMap, loadPixels, updatePixelMap }
 }

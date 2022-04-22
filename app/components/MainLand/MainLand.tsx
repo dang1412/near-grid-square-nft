@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Sprite } from 'pixi.js'
 import { useRecoilValue } from 'recoil'
 import { DropShadowFilter } from '@pixi/filter-drop-shadow'
@@ -10,10 +10,10 @@ import ButtonGroup from '@mui/material/ButtonGroup'
 import Typography from '@mui/material/Typography'
 import Popper from '@mui/material/Popper'
 
-import { coordinateToIndex, GameEngine, GameSceneViewport, indexToCoordinate, iterateSelect, SelectionRect } from '../../lib'
-import { Account, getContractDataService, type Pixel } from '../../services'
+import { coordinateToIndex, GameEngine, GameSceneViewport, getIndexArray, indexToCoordinate, iterateSelect, SelectionRect } from '../../lib'
+import { Account, getContractDataService, PickCount, type Pixel } from '../../services'
 import { platformState } from '../PlatformSelect'
-import { useLogin, usePixelData } from '../hooks'
+import { PixelMap, useAccountPick, useLogin, usePickCount, usePixelData } from '../hooks'
 import { PopperInfo } from './PopperInfo'
 
 const WORLD_SIZE = 100
@@ -56,11 +56,18 @@ function getVirtualElement(x: number, y: number): VirtualElement {
   }
 }
 
+function pixelToMapXY(pixelId: number): [number, number] {
+  const [wx, wy] = indexToCoordinate(pixelId)
+  const [x, y] = [wx + WORLD_SIZE / 2, wy + WORLD_SIZE / 2]
+
+  return [x, y]
+}
+
 // reflect all minted pixels on map
 function reflectPixels(scene: GameSceneViewport, pixels: Pixel[], account: Account | null) {
   for (const pixel of pixels) {
-    const [wx, wy] = indexToCoordinate(Number(pixel.pixelId))
-    const [x, y] = [wx + WORLD_SIZE / 2, wy + WORLD_SIZE / 2]
+    // convert to map coordinate
+    const [x, y] = pixelToMapXY(pixel.pixelId)
     reflectPixelCoordinate(scene, x, y, !!account && account.addr === pixel.owner)
 
     // pixel.interactive = true
@@ -77,7 +84,30 @@ function reflectPixelCoordinate(scene: GameSceneViewport, x: number, y: number, 
   } else {
     pixelSprite.tint = 0xababab
   }
-  pixelSprite.alpha = 0.6
+  pixelSprite.alpha = 0.4
+}
+
+// reflect picked pixels on map
+let maxPickNumber = 12
+function reflectPickedPixels(scene: GameSceneViewport, pickCounts: PickCount[], ownPickSet: Set<number>) {
+  // update maxPickNumber
+  maxPickNumber = Math.max.apply(null, pickCounts.map(p => p.count)) + 12
+  for (const pick of pickCounts) {
+    // convert to map coordinate
+    const [x, y] = pixelToMapXY(pick.pixelId)
+    reflectPickedXY(scene, x, y, pick.count, ownPickSet.has(pick.pixelId))
+  }
+}
+
+function reflectPickedXY(scene: GameSceneViewport, x: number, y: number, count: number, owned: boolean) {
+  if (count > maxPickNumber) count = maxPickNumber
+  const pickSprite = scene.addGridSprite(x, y, 'pick')
+  if (owned) {
+    pickSprite.tint = 0x00ff00
+  } else {
+    pickSprite.tint = 0xff0000
+  }
+  pickSprite.alpha = count / maxPickNumber * 0.9
 }
 
 export const MainLand: React.FC<{}> = () => {
@@ -89,8 +119,13 @@ export const MainLand: React.FC<{}> = () => {
   const [select, setSelect] = useState<SelectionRect>({x: 0, y: 0, width: 0, height: 0})
   const [totalReward, setTotalReward] = useState('1000')
 
-  const { pixelMap, loadPixels } = usePixelData(platform)
+  // pixel data
+  const { pixelMap, loadPixels, updatePixelMap } = usePixelData(platform)
   const { account } = useLogin(platform)
+
+  // pick data
+  const { pickCountMap, loadPickCount } = usePickCount(platform)
+  const { accountPickSet, loadAccountPick } = useAccountPick(platform)
 
   useEffect(() => {
     (async () => {
@@ -138,6 +173,7 @@ export const MainLand: React.FC<{}> = () => {
       sceneRef.current = mainScene
 
       await loadPixels()
+      await loadPickCount()
     })()
   }, [platform])
 
@@ -149,21 +185,59 @@ export const MainLand: React.FC<{}> = () => {
     }
   }, [pixelMap, account])
 
+  // reflect picked pixels (lottery) on map
+  useEffect(() => {
+    const mainScene = sceneRef.current
+    if (mainScene) {
+      reflectPickedPixels(mainScene, Object.values(pickCountMap), accountPickSet)
+    }
+  }, [pickCountMap, accountPickSet])
+
+  // update account picked
+  useEffect(() => {
+    loadAccountPick(account)
+  }, [account])
+
   // mint pixels
-  const mint = async () => {
+  // TODO can improve performance by using buffer state for user added pixels
+  const mint = useCallback(async () => {
     const mainScene = sceneRef.current
     const service = await getContractDataService(platform)
-    if (service && mainScene) {
-      const token = coordinateToIndex(select.x - WORLD_SIZE / 2, select.y - WORLD_SIZE / 2)
-      await service.mintPixels(token, select.width, select.height)
+    if (account && service && mainScene) {
+      const pixelId = coordinateToIndex(select.x - WORLD_SIZE / 2, select.y - WORLD_SIZE / 2)
+      await service.mintPixels(pixelId, select.width, select.height)
 
-      iterateSelect(select, (x, y) => {
-        reflectPixelCoordinate(mainScene, x, y, true)
-      })
+      // get pixelMap update
+      const update: PixelMap = {}
+      const pixelIds = getIndexArray(pixelId, select.width, select.height)
+      for (const id of pixelIds) {
+        update[id] = {
+          pixelId: id,
+          owner: account.addr,
+          dateMinted: ''
+        }
+      }
+
+      // update state and reflect on map
+      updatePixelMap(update)
+
+      // update on map
+      // iterateSelect(select, (x, y) => {
+      //   // reflectPixelCoordinate(mainScene, x, y, true)
+
+      //   // update pixelMap state
+      //   const pixelId = coordinateToIndex(x - WORLD_SIZE / 2, y - WORLD_SIZE / 2)
+      //   const pixel: Pixel = {
+      //     pixelId,
+      //     owner: account.addr,
+      //     dateMinted: ''
+      //   }
+      //   update[pixelId] = pixel
+      // })
 
       // TODO update pixelMap
     }
-  }
+  }, [platform, account, select, updatePixelMap])
 
   // pick lottery tickets
   const pick = async () => {
@@ -172,6 +246,25 @@ export const MainLand: React.FC<{}> = () => {
     if (service && mainScene) {
       const pixel = coordinateToIndex(select.x - WORLD_SIZE / 2, select.y - WORLD_SIZE / 2)
       await service.pickPixels(pixel, select.width, select.height)
+
+      // update pickCount state and on map
+      const pixelIds = getIndexArray(pixel, select.width, select.height)
+      for (const pixelId of pixelIds){
+        if (!pickCountMap[pixelId]) {
+          pickCountMap[pixelId] = {
+            pixelId,
+            count: 0
+          }
+        }
+        // update pickCountMap
+        const count = ++pickCountMap[pixelId].count
+        // update on map
+        const [x, y] = pixelToMapXY(pixelId)
+        reflectPickedXY(mainScene, x, y, count, true)
+
+        // update account pick state
+        accountPickSet.add(pixelId)
+      }
     }
   }
 
@@ -198,6 +291,15 @@ export const MainLand: React.FC<{}> = () => {
     setOpen(false)
   }
 
+  const selectImage = (image: HTMLImageElement) => {
+    const mainScene = sceneRef.current
+    if (mainScene) {
+      // const imageSprite = mainScene.addGridSprite(select.x, select.y, 'image')
+      // imageSprite.width = 
+      mainScene.setSelectingImage(image)
+    }
+  }
+
   return (
     <div ref={(_c) => wrapperRef.current = _c} style={{width: '100%', maxWidth: 800}}>
       <Typography variant="h4" color="success" style={{textAlign: 'center'}}>
@@ -218,6 +320,7 @@ export const MainLand: React.FC<{}> = () => {
           onClose={handleCloseSelect}
           onMintClick={mint}
           onPickClick={pick}
+          onSelectImage={selectImage}
         />
       </Popper>
       <Box style={{ display: 'flex' }} sx={{ border: 1, p: 1, bgcolor: 'background.paper' }}>

@@ -10,3 +10,8 @@ export interface Pixel {
   owner: string
   dateMinted: string
 }
+
+export interface PickCount {
+  pixelId: number
+  count: number
+}
