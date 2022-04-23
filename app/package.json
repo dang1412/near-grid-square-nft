@@ -23,6 +23,7 @@
     "@polkadot/util": "^8.3.1",
     "@polkadot/util-crypto": "^8.3.1",
     "@popperjs/core": "^2.11.5",
+    "ipfs-http-client": "^56.0.2",
     "near-api-js": "^0.44.2",
     "next": "12.1.0",
     "pixi-viewport": "^4.34.4",

@@ -11,10 +11,11 @@ import Typography from '@mui/material/Typography'
 import Popper from '@mui/material/Popper'
 
 import { coordinateToIndex, GameEngine, GameSceneViewport, getIndexArray, indexToCoordinate, iterateSelect, SelectionRect } from '../../lib'
-import { Account, getContractDataService, PickCount, type Pixel } from '../../services'
+import { Account, getContractDataService, PickCount, PixelImage, type Pixel } from '../../services'
 import { platformState } from '../PlatformSelect'
 import { PixelMap, useAccountPick, useLogin, usePickCount, usePixelData } from '../hooks'
 import { PopperInfo } from './PopperInfo'
+import { uploadIPFS } from './upload-ipfs'
 
 const WORLD_SIZE = 100
 const PIXEL_SIZE = 8
@@ -110,6 +111,15 @@ function reflectPickedXY(scene: GameSceneViewport, x: number, y: number, count: 
   pickSprite.alpha = count / maxPickNumber * 0.9
 }
 
+// https://ipfs.infura.io/ipfs/QmQPdxccM4czLHHpJGkB1zPGvfzaRwhzoyJkzuweY9kF7n
+function reflectImages(scene: GameSceneViewport, images: PixelImage[]) {
+  for (const image of images) {
+    const url = `https://ipfs.infura.io/ipfs/${image.cid}`
+    const [x, y] = pixelToMapXY(image.pixelId)
+    scene.addImageURL({x, y, width: image.w, height: image.h}, url)
+  }
+}
+
 export const MainLand: React.FC<{}> = () => {
   const platform = useRecoilValue(platformState)
   const wrapperRef = useRef<HTMLDivElement | null>(null)
@@ -126,6 +136,9 @@ export const MainLand: React.FC<{}> = () => {
   // pick data
   const { pickCountMap, loadPickCount } = usePickCount(platform)
   const { accountPickSet, loadAccountPick } = useAccountPick(platform)
+
+  // images
+  // const [images, setImages] = useState<PixelImage[]>([])
 
   useEffect(() => {
     (async () => {
@@ -172,7 +185,10 @@ export const MainLand: React.FC<{}> = () => {
       // store the main scene object
       sceneRef.current = mainScene
 
+      // add layer in order: mint, image, pick
       await loadPixels()
+      const images = await service.getPixelImages()
+      reflectImages(mainScene, images)
       await loadPickCount()
     })()
   }, [platform])
@@ -294,9 +310,28 @@ export const MainLand: React.FC<{}> = () => {
   const selectImage = (image: HTMLImageElement) => {
     const mainScene = sceneRef.current
     if (mainScene) {
-      // const imageSprite = mainScene.addGridSprite(select.x, select.y, 'image')
-      // imageSprite.width = 
       mainScene.setSelectingImage(image)
+    }
+  }
+
+  const upload = async (file: File) => {
+    const mainScene = sceneRef.current
+    const service = await getContractDataService(platform)
+    if (mainScene && service) {
+      // put image on map
+      const image = new Image()
+      image.src = URL.createObjectURL(file)
+      mainScene.addImageElement(select, image)
+
+      // upload to ipfs
+      const cid = await uploadIPFS(file)
+
+      // set image onchain
+      const pixel = coordinateToIndex(select.x - WORLD_SIZE / 2, select.y - WORLD_SIZE / 2)
+      await service.setPixelImage(pixel, cid, select.width, select.height)
+
+      // clear select
+      handleCloseSelect()
     }
   }
 
@@ -321,6 +356,7 @@ export const MainLand: React.FC<{}> = () => {
           onMintClick={mint}
           onPickClick={pick}
           onSelectImage={selectImage}
+          onUploadClick={upload}
         />
       </Popper>
       <Box style={{ display: 'flex' }} sx={{ border: 1, p: 1, bgcolor: 'background.paper' }}>

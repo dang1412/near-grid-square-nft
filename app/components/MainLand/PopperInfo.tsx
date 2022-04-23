@@ -1,5 +1,5 @@
 import { useRecoilValue } from 'recoil'
-import { FaTimes } from 'react-icons/fa'
+import { FaTimes, FaUpload } from 'react-icons/fa'
 
 import Button from '@mui/material/Button'
 import IconButton from '@mui/material/IconButton'
@@ -11,7 +11,7 @@ import { type Account, type Pixel } from '../../services'
 import { PixelMap, useAccountPick, useLogin, usePixelData } from '../hooks'
 import { platformState } from '../PlatformSelect'
 import { coordinateToIndex, getIndexArray } from '../../lib'
-import { ChangeEvent } from 'react'
+import { ChangeEvent, useMemo, useState } from 'react'
 
 export interface PopperInfoProps {
   x: number
@@ -22,6 +22,7 @@ export interface PopperInfoProps {
   onMintClick?: () => void
   onPickClick?: () => void
   onSelectImage?: (image: HTMLImageElement) => void
+  onUploadClick?: (file: File) => void
 }
 
 export const defaultPopperProps: PopperInfoProps = {
@@ -59,7 +60,7 @@ const isUploadable = (pixelMap: PixelMap, pixelIds: number[], account: Account |
 }
 
 export const PopperInfo: React.FC<PopperInfoProps> = (props) => {
-  const { x, y, w, h, onClose = () => {}, onMintClick, onPickClick, onSelectImage } = props
+  const { x, y, w, h, onClose = () => {}, onMintClick, onPickClick, onSelectImage, onUploadClick } = props
 
   const platform = useRecoilValue(platformState)
   const { login, account } = useLogin(platform)
@@ -68,11 +69,11 @@ export const PopperInfo: React.FC<PopperInfoProps> = (props) => {
   const { accountPickSet } = useAccountPick(platform)
 
   // check mintable, pickable
-  const pixel = coordinateToIndex(x, y)
-  const pixelIds = getIndexArray(pixel, w, h)
-  const mintable = isMintable(pixelMap, pixelIds)
-  const pickable = isPickable(accountPickSet, pixelIds)
-  const uploadable = isUploadable(pixelMap, pixelIds, account)
+  const pixel = useMemo(() => coordinateToIndex(x, y), [x, y])
+  const pixelIds = useMemo(() => getIndexArray(pixel, w, h), [pixel, w, h])
+  const mintable = useMemo(() => isMintable(pixelMap, pixelIds), [pixelMap, pixelIds])
+  const pickable = useMemo(() => isPickable(accountPickSet, pixelIds), [accountPickSet, pixelIds])
+  const uploadable = useMemo(() => isUploadable(pixelMap, pixelIds, account), [pixelMap, pixelIds, account])
 
   let pixelInfo: Pixel | null = null
   if (w * h === 1) {
@@ -98,18 +99,28 @@ export const PopperInfo: React.FC<PopperInfoProps> = (props) => {
     login()
   }
 
-  const setImage = (event: ChangeEvent<HTMLInputElement>) => {
+  // image file
+  const [file, setFile] = useState<File | null>(null)
+
+  const selectImage = (event: ChangeEvent<HTMLInputElement>) => {
     if (event && event.currentTarget && event.currentTarget.files && event.currentTarget.files[0]) {
       const file = event.currentTarget.files[0];
       // setFile(file)
       const image = new Image()
       image.src = URL.createObjectURL(file)
       image.onload = () => {
-        // sceneRef.current?.setSelectingImage(image)
         if (onSelectImage) {
           onSelectImage(image)
         }
+        setFile(file)
       }
+    }
+  }
+
+  const upload = () => {
+    if (!file) return
+    if (onUploadClick) {
+      onUploadClick(file)
     }
   }
 
@@ -140,11 +151,13 @@ export const PopperInfo: React.FC<PopperInfoProps> = (props) => {
         </>
       )}
       {uploadable ? (
-          // <Button variant="outlined" onClick={() => {}} size="small">Image</Button>
-          <Button variant="contained" component="label" size="small">
-            Image
-            <input id="chooseImage" type="file" hidden onChange={setImage} />
-          </Button>
+          <ButtonGroup variant="outlined">
+            <Button variant="contained" component="label" size="small">
+              Image
+              <input id="chooseImage" type="file" hidden onChange={selectImage} />
+            </Button>
+            <Button onClick={upload} size="small" disabled={!file}><FaUpload/></Button>
+          </ButtonGroup>
         ) : <></>
       }
 

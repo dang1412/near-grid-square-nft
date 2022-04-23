@@ -15,3 +15,10 @@ export interface PickCount {
   pixelId: number
   count: number
 }
+
+export interface PixelImage {
+  pixelId: number
+  cid: string
+  w: number
+  h: number
+}

@@ -1,4 +1,4 @@
-import { Account, PickCount, Pixel } from './types'
+import { Account, PickCount, Pixel, PixelImage } from './types'
 import { ContractPlatform } from './utils'
 
 export interface ContractDataService {
@@ -17,11 +17,13 @@ export interface ContractDataService {
   getAccountPixel(account: string): Promise<number[]>
   getPickedPixels(): Promise<PickCount[]>
   getAccountPickedPixels(account: string): Promise<number[]>
+  getPixelImages(): Promise<PixelImage[]>
 
   // write
   mintPixels(pixel: number, width: number, height: number): void
   mergePixels(pixel: number, width: number, height: number): void
   pickPixels(pixel: number, width: number, height: number): void
+  setPixelImage(pixel: number, cid: string, width: number, height: number): void
 }
 
 const serviceSingleton: {[platform: number]: Promise<ContractDataService>} = {}
