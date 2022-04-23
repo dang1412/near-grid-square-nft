@@ -13,7 +13,7 @@ import Popper from '@mui/material/Popper'
 import { coordinateToIndex, GameEngine, GameSceneViewport, getIndexArray, indexToCoordinate, iterateSelect, SelectionRect } from '../../lib'
 import { Account, getContractDataService, PickCount, PixelImage, type Pixel } from '../../services'
 import { platformState } from '../PlatformSelect'
-import { PixelMap, useAccountPick, useLogin, usePickCount, usePixelData } from '../hooks'
+import { PixelMap, useAccountPick, useLogin, useLotteryInfo, usePickCount, usePixelData } from '../hooks'
 import { PopperInfo } from './PopperInfo'
 import { uploadIPFS } from './upload-ipfs'
 
@@ -127,7 +127,7 @@ export const MainLand: React.FC<{}> = () => {
   const sceneRef = useRef<GameSceneViewport | null>(null)
 
   const [select, setSelect] = useState<SelectionRect>({x: 0, y: 0, width: 0, height: 0})
-  const [totalReward, setTotalReward] = useState('1000')
+  // const [totalReward, setTotalReward] = useState('1000')
 
   // pixel data
   const { pixelMap, loadPixels, updatePixelMap } = usePixelData(platform)
@@ -139,6 +139,9 @@ export const MainLand: React.FC<{}> = () => {
 
   // images
   // const [images, setImages] = useState<PixelImage[]>([])
+
+  // lottery info
+  const { lotteryAccount, totalReward, lotteryIndex, lotteryInfo, blockNumber } = useLotteryInfo(platform)
 
   useEffect(() => {
     (async () => {
@@ -337,8 +340,16 @@ export const MainLand: React.FC<{}> = () => {
 
   return (
     <div ref={(_c) => wrapperRef.current = _c} style={{width: '100%', maxWidth: 800}}>
+      <Typography variant="body1" color="success">
+        Address: {lotteryAccount} <br/>
+        Round: {lotteryIndex} <br/>
+        Ticket Price: {lotteryInfo?.price} <br/>
+        Start Block: {lotteryInfo?.start} <br/>
+        End Block: {lotteryInfo ? lotteryInfo.start + lotteryInfo.length : 0} <br/>
+        Current Block: {blockNumber}
+      </Typography>
       <Typography variant="h4" color="success" style={{textAlign: 'center'}}>
-        {totalReward} ETH
+        {totalReward} PIX
       </Typography>
       <canvas onMouseOut={handleMouseLeave} ref={(_c) => canvasRef.current = _c} style={{backgroundColor: 'grey'}} />
       <Popper

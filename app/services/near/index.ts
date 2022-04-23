@@ -1,7 +1,7 @@
 import { connect, keyStores, type Near, type ConnectConfig, WalletConnection, providers, utils, Account as NearAccount } from 'near-api-js'
 
 import { type Account, ContractDataService, Pixel } from '..'
-import { PixelImage } from '../types'
+import { LotteryInfo, PixelImage } from '../types'
 
 const keyStore = new keyStores.BrowserLocalStorageKeyStore()
 const contractId = 'pixelland.dang1412.testnet'
@@ -41,6 +41,15 @@ export class NearDataService implements ContractDataService {
     // )
 
     // t.
+  }
+  subscribeBlockHeader(cb: (block: string) => void): Promise<any> {
+    throw new Error('Method not implemented.')
+  }
+  getLotteryInfo(): Promise<LotteryInfo> {
+    throw new Error('Method not implemented.')
+  }
+  subscribeBalance(account: string, cb: (balance: string) => void): Promise<any> {
+    throw new Error('Method not implemented.')
   }
   setPixelImage(pixel: number, cid: string, width: number, height: number): void {
     throw new Error('Method not implemented.')

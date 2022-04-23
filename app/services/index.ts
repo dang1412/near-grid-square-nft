@@ -1,4 +1,4 @@
-import { Account, PickCount, Pixel, PixelImage } from './types'
+import { Account, LotteryInfo, PickCount, Pixel, PixelImage } from './types'
 import { ContractPlatform } from './utils'
 
 export interface ContractDataService {
@@ -19,9 +19,13 @@ export interface ContractDataService {
   getAccountPickedPixels(account: string): Promise<number[]>
   getPixelImages(): Promise<PixelImage[]>
 
+  getLotteryInfo(): Promise<LotteryInfo>
+
+  subscribeBlockHeader(cb: (block: string) => void): Promise<any>
+  subscribeBalance(account: string, cb: (balance: string) => void): Promise<any>
+
   // write
   mintPixels(pixel: number, width: number, height: number): void
-  mergePixels(pixel: number, width: number, height: number): void
   pickPixels(pixel: number, width: number, height: number): void
   setPixelImage(pixel: number, cid: string, width: number, height: number): void
 }

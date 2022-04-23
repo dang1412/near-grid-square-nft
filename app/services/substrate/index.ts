@@ -8,7 +8,7 @@ import { KeyringPair } from '@polkadot/keyring/types'
 
 import { Account, ContractDataService, PickCount, Pixel } from '..'
 import { coordinateToIndex, getIndexArray, indexToCoordinate } from '../../lib'
-import { PixelImage } from '../types'
+import { LotteryInfo, PixelImage } from '../types'
 import { Codec } from '@polkadot/types/types'
 
 const config = {
@@ -188,10 +188,22 @@ export class SubstrateDataService implements ContractDataService {
   }
 
   async subscribeBalance(account: string, cb: (balance: string) => void): Promise<any> {
+    await this._api.isReady
     const unsub = await this._api.query.system.account(account, (raw: Codec) => {
       const balance = (raw.toHuman() as any).data.free as string
       cb(balance)
     })
+
+    return unsub
+  }
+
+  async subscribeBlockHeader(cb: (block: string) => void): Promise<any> {
+    await this._api.isReady
+    const unsub = await this._api.rpc.chain.subscribeNewHeads((header) => {
+      cb(header.number.toHuman() as string)
+    })
+
+    return unsub
   }
 
   async getPixels(): Promise<Pixel[]> {
@@ -222,6 +234,20 @@ export class SubstrateDataService implements ContractDataService {
     const index = raw.toHuman() as number
 
     return index
+  }
+
+  async getLotteryInfo(): Promise<LotteryInfo> {
+    await this._api.isReady
+    const raw = await this._api.query.lotteryModule.lottery()
+    const obj = raw.toHuman() as any
+    console.log('getLotteryInfo', obj)
+
+    return {
+      price: obj.price,
+      start: Number(obj.start.replace(/,/g, '')),
+      length: Number(obj.length.replace(/,/g, '')),
+      delay: Number(obj.delay.replace(/,/g, '')),
+    }
   }
 
   async getLotteryAccount(): Promise<string> {
@@ -278,8 +304,6 @@ export class SubstrateDataService implements ContractDataService {
 
   async setPixelImage(pixel: number, cid: string, width: number, height: number) {
     if (this.currentAccount) {
-      // const pixelIds = getIndexArray(pixel, width, height)
-      // console.log('mint', pixel, width, height, pixelIds, this.currentAccount)
       const pair = Keyring.getPair(this.currentAccount.addr)
 
       await this._api.tx.pixelModule.setImage(pixel, cid, [width, height]).signAndSend(pair, (rs) => {
@@ -288,15 +312,6 @@ export class SubstrateDataService implements ContractDataService {
     }
   }
 
-  async mergePixels(pixel: number, width: number, height: number) {
-    // throw new Error('Method not implemented.');
-    // if (this._acc) {
-    //   console.log('merge', pixel, width, height)
-    //   await this._api.tx.pixelModule.mergePixel(pixel, width, height).signAndSend(this._acc, (rs) => {
-    //     console.log(rs)
-    //   })
-    // }
-  }
   async pickPixels(pixel: number, width: number, height: number) {
     if (this.currentAccount) {
       const pixelIds = getIndexArray(pixel, width, height)

@@ -22,3 +22,10 @@ export interface PixelImage {
   w: number
   h: number
 }
+
+export interface LotteryInfo {
+  price: string
+  start: number
+  length: number
+  delay: number
+}
