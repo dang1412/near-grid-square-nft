@@ -14,7 +14,7 @@ import { LotteryInfo, PixelImage } from '../types'
 const config = {
   APP_NAME: 'substrate-front-end-template',
   CUSTOM_RPC_METHODS: {},
-  PROVIDER_SOCKET: 'ws://127.0.0.1:9944',
+  PROVIDER_SOCKET: 'ws://103.173.254.235:9955',
 }
 
 const parsedQuery = new URLSearchParams(window.location.search)
@@ -249,24 +249,25 @@ export class SubstrateDataService implements ContractDataService {
     return index
   }
 
-  async getLotteryInfo(): Promise<LotteryInfo> {
+  async getLotteryInfo(): Promise<LotteryInfo | null> {
     await this._api.isReady
     const raw = await this._api.query.lotteryModule.lottery()
     const obj = raw.toHuman() as any
     console.log('getLotteryInfo', obj)
 
-    return {
+    return obj ? {
       price: obj.price,
       start: Number(obj.start.replace(/,/g, '')),
       length: Number(obj.length.replace(/,/g, '')),
       delay: Number(obj.delay.replace(/,/g, '')),
-    }
+    } : null
   }
 
   async getLotteryAccount(): Promise<string> {
     await this._api.isReady
-    const raw = await this._api.query.lotteryModule.lotteryAccount()
-    const addr = raw.toHuman() as string
+    const addr = ''
+    // const raw = await this._api.query.lotteryModule.lotteryAccount()
+    // const addr = raw.toHuman() as string
 
     return addr
   }
@@ -277,18 +278,19 @@ export class SubstrateDataService implements ContractDataService {
 
   async getPickedPixels(): Promise<PickCount[]> {
     const index = await this.getLotteryIndex()
-    const pickData = await this._api.query.lotteryModule.pixelPickCnt.entries(index)
-    const picks: PickCount[] = pickData.map(([{ args }, value]) => {
-      const [indexRaw, pixelIdRaw] = args
+    // const pickData = await this._api.query.lotteryModule.pixelPickCnt.entries(index)
+    // const picks: PickCount[] = pickData.map(([{ args }, value]) => {
+    //   const [indexRaw, pixelIdRaw] = args
 
-      const pixelId = Number((pixelIdRaw.toHuman() as string).replace(/,/g, ''))
-      const count = Number(value.toHuman() as string)
+    //   const pixelId = Number((pixelIdRaw.toHuman() as string).replace(/,/g, ''))
+    //   const count = Number(value.toHuman() as string)
 
-      return {
-        pixelId,
-        count
-      }
-    })
+    //   return {
+    //     pixelId,
+    //     count
+    //   }
+    // })
+    const picks: PickCount[] = []
 
     return picks
   }

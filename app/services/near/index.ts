@@ -48,7 +48,7 @@ export class NearDataService implements ContractDataService {
   subscribeBlockHeader(cb: (block: string) => void): Promise<any> {
     throw new Error('Method not implemented.')
   }
-  getLotteryInfo(): Promise<LotteryInfo> {
+  getLotteryInfo(): Promise<LotteryInfo | null> {
     throw new Error('Method not implemented.')
   }
   subscribeBalance(account: string, cb: (balance: string) => void): Promise<any> {

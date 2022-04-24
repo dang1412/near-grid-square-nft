@@ -19,7 +19,7 @@ export interface ContractDataService {
   getAccountPickedPixels(account: string): Promise<number[]>
   getPixelImages(): Promise<PixelImage[]>
 
-  getLotteryInfo(): Promise<LotteryInfo>
+  getLotteryInfo(): Promise<LotteryInfo | null>
 
   subscribeBlockHeader(cb: (block: string) => void): Promise<any>
   subscribeBalance(account: string, cb: (balance: string) => void): Promise<any>
