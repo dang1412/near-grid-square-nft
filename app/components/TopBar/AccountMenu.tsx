@@ -27,7 +27,7 @@ export const AccountMenu: React.FC<{}> = () => {
     setAnchorEl(null)
   }
 
-  const { login, setIfLogin, logout: dologout, account, setAccount, accounts } = useLogin(platform)
+  const { login, logout: dologout, account, setAccount, accounts } = useLogin(platform)
 
   const logout = () => {
     dologout()
@@ -46,9 +46,9 @@ export const AccountMenu: React.FC<{}> = () => {
   }, [account, platform])
 
   // set login initially if remembered
-  useEffect(() => {
-    setIfLogin()
-  }, [platform])
+  // useEffect(() => {
+  //   setIfLogin()
+  // }, [platform])
 
   // select accounts
   const [openAccountSelect, setOpenAccountSelect] = useState(false)

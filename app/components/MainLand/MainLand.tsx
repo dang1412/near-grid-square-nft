@@ -81,7 +81,8 @@ function reflectPixels(scene: GameSceneViewport, pixels: Pixel[], account: Accou
 function reflectPixelCoordinate(scene: GameSceneViewport, x: number, y: number, isOwner: boolean) {
   const pixelSprite = scene.addGridSprite(x, y, 'mint')
   if (isOwner) {
-    pixelSprite.tint = 0xfce303
+    // pixelSprite.tint = 0xfce303
+    pixelSprite.tint = 0xdce090
   } else {
     pixelSprite.tint = 0xababab
   }
@@ -370,19 +371,16 @@ export const MainLand: React.FC<{}> = () => {
           onUploadClick={upload}
         />
       </Popper>
-      <Box style={{ display: 'flex' }} sx={{ border: 1, p: 1, bgcolor: 'background.paper' }}>
+      {/* <Box style={{ display: 'flex' }} sx={{ border: 1, p: 1, bgcolor: 'background.paper' }}>
         Selected: {`(${select.x}, ${select.y}), [${select.width} x ${select.height}]`}
         <span style={{ flexGrow: 1 }} />
-        <ButtonGroup variant="outlined" aria-label="outlined primary button group">
-          {/* <Button onClick={mint} size="small">Mint</Button>
-          <Button onClick={merge} size="small">Merge</Button> */}
-          {/* <Button size="small" component="label">
-            Image <input id="chooseImage" hidden type="file" onChange={setImage} />
-            </Button>
-          <Button size="small" onClick={upload}><FaUpload/></Button> */}
-        </ButtonGroup>
-        {/* <Button onClick={() => req(pick)} variant='outlined' size="small">Pick</Button> */}
-      </Box>
+      </Box> */}
+      <div>
+        <span style={{backgroundColor: '#ababab', opacity: '0.4', border: '1px solid'}}>&nbsp;&nbsp;</span> Minted pixel <br/>
+        <span style={{backgroundColor: '#dce090', opacity: '0.4', border: '1px solid'}}>&nbsp;&nbsp;</span> Owned minted pixel <br/>
+        <span style={{backgroundColor: 'red', opacity: '0.4', border: '1px solid'}}>&nbsp;&nbsp;</span> Picked pixel <br/>
+        <span style={{backgroundColor: 'green', opacity: '0.4', border: '1px solid'}}>&nbsp;&nbsp;</span> Owned picked pixel <br/>
+      </div>
     </div>
   )
 }

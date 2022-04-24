@@ -8,7 +8,7 @@ import Typography from '@mui/material/Typography'
 import Paper from '@mui/material/Paper'
 
 import { type Account, type Pixel } from '../../services'
-import { PixelMap, useAccountPick, useLogin, usePixelData } from '../hooks'
+import { PixelMap, useAccountPick, useLogin, pixelState } from '../hooks'
 import { platformState } from '../PlatformSelect'
 import { coordinateToIndex, getIndexArray } from '../../lib'
 import { ChangeEvent, useMemo, useState } from 'react'
@@ -65,7 +65,7 @@ export const PopperInfo: React.FC<PopperInfoProps> = (props) => {
   const platform = useRecoilValue(platformState)
   const { login, account } = useLogin(platform)
 
-  const { pixelMap } = usePixelData(platform)
+  const pixelMap = useRecoilValue(pixelState)
   const { accountPickSet } = useAccountPick(platform)
 
   // check mintable, pickable

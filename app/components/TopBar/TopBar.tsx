@@ -23,7 +23,7 @@ export const TopBar: React.FC<{}> = () => {
             <Button color="inherit">Guide</Button>
           </Link>
           <span style={{ flexGrow: 1 }} />
-          <PlatformSelect />
+          {/* <PlatformSelect /> */}
           <AccountMenu />
           {/* {account ? <Button color="inherit" onClick={logout}>{account}</Button> : <Button color="inherit" onClick={login}>Connect</Button>} */}
         </Toolbar>

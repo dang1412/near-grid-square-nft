@@ -9,7 +9,7 @@ export const accountState = atom<Account | null>({
 
 interface LoginHook {
   login: () => Promise<void>,
-  setIfLogin: () => Promise<void>,
+  // setIfLogin: () => Promise<void>,
   logout: () => Promise<void>,
   account: Account | null,
   setAccount: Function,
@@ -21,20 +21,23 @@ let accounts: Account[] = []
 export function useLogin(platform: ContractPlatform): LoginHook {
   const [account, setAccount] = useRecoilState(accountState)
 
-  const setIfLogin = async () => {
-    const service = await getContractDataService(platform)
-    if (service) {
-      const account = service.getCurrentAccount()
-      accounts = service.getAccounts()
-      setAccount(account)
-    }
-  }
+  // const setIfLogin = async () => {
+  //   const service = await getContractDataService(platform)
+  //   if (service) {
+  //     const account = service.getCurrentAccount()
+  //     accounts = service.getAccounts()
+  //     setAccount(account)
+  //   }
+  // }
 
   const login = async () => {
     const service = await getContractDataService(platform)
     if (service) {
       await service.signIn()
-      setIfLogin()
+      const account = service.getCurrentAccount()
+      accounts = service.getAccounts()
+      setAccount(account)
+      // setIfLogin()
     }
   }
 
@@ -44,7 +47,8 @@ export function useLogin(platform: ContractPlatform): LoginHook {
       service.signOut()
     }
     setAccount(null)
+    accounts = []
   }
 
-  return { login, setIfLogin, logout, account, setAccount, accounts }
+  return { login, logout, account, setAccount, accounts }
 }

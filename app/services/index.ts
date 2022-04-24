@@ -23,6 +23,7 @@ export interface ContractDataService {
 
   subscribeBlockHeader(cb: (block: string) => void): Promise<any>
   subscribeBalance(account: string, cb: (balance: string) => void): Promise<any>
+  subscribePixels(cb: (pixels: Pixel[]) => void): Promise<any>
 
   // write
   mintPixels(pixel: number, width: number, height: number): void

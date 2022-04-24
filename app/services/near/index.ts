@@ -42,6 +42,9 @@ export class NearDataService implements ContractDataService {
 
     // t.
   }
+  subscribePixels(cb: (pixels: Pixel[]) => void): Promise<any> {
+    throw new Error('Method not implemented.')
+  }
   subscribeBlockHeader(cb: (block: string) => void): Promise<any> {
     throw new Error('Method not implemented.')
   }

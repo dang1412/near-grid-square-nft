@@ -1,15 +1,15 @@
 import jsonrpc from '@polkadot/types/interfaces/jsonrpc'
 import { ApiPromise, WsProvider } from '@polkadot/api'
-import { web3Accounts, web3Enable, web3FromAddress } from '@polkadot/extension-dapp'
+import { web3Accounts, web3Enable } from '@polkadot/extension-dapp'
 import { keyring as Keyring } from '@polkadot/ui-keyring'
 import { isTestChain } from '@polkadot/util'
 import { TypeRegistry } from '@polkadot/types/create'
-import { KeyringPair } from '@polkadot/keyring/types'
+import { AnyTuple, Codec } from '@polkadot/types/types'
+import { StorageKey } from '@polkadot/types'
 
 import { Account, ContractDataService, PickCount, Pixel } from '..'
-import { coordinateToIndex, getIndexArray, indexToCoordinate } from '../../lib'
+import { getIndexArray } from '../../lib'
 import { LotteryInfo, PixelImage } from '../types'
-import { Codec } from '@polkadot/types/types'
 
 const config = {
   APP_NAME: 'substrate-front-end-template',
@@ -35,7 +35,6 @@ enum KeyringState {
 }
 
 const registry = new TypeRegistry()
-
 const retrieveChainInfo = async (api: ApiPromise) => {
   const [systemChain, systemChainType] = await Promise.all([
     api.rpc.system.chain(),
@@ -197,7 +196,7 @@ export class SubstrateDataService implements ContractDataService {
     return unsub
   }
 
-  async subscribeBlockHeader(cb: (block: string) => void): Promise<any> {
+  async subscribeBlockHeader(cb: (block: string) => void): Promise<Function> {
     await this._api.isReady
     const unsub = await this._api.rpc.chain.subscribeNewHeads((header) => {
       cb(header.number.toHuman() as string)
@@ -215,6 +214,20 @@ export class SubstrateDataService implements ContractDataService {
     })
 
     return pixels
+  }
+
+  async subscribePixels(cb: (pixels: Pixel[]) => void): Promise<any> {
+    await this._api.isReady
+    const unsub = await this._api.query.pixelModule.pixels.entries((entries: [StorageKey<AnyTuple>, Codec][]) => {
+      const pixels = entries.map(([{ args }, value]) => {
+        const raw = value.toHuman() as any
+        return rawObjToPixel(raw)
+      })
+
+      cb(pixels)
+    })
+
+    return unsub
   }
 
   async getPixelImages(): Promise<PixelImage[]> {

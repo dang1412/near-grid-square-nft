@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { atom, useRecoilState } from 'recoil'
 
 import { ContractPlatform, getContractDataService, type Pixel } from '../../services'
@@ -33,6 +32,21 @@ export function usePixelData(platform: ContractPlatform): PixelHook {
   const updatePixelMap = (update: PixelMap) => {
     setPixelMap({...pixelMap, ...update})
   }
+
+  // useEffect(() => {
+  //   let unsub: Function
+  //   (async () => {
+  //     const service = await getContractDataService(platform)
+  //     service.subscribePixels((pixels) => {
+  //       console.log('subscribePixels', pixels)
+  //     })
+  //   })()
+
+  //   return () => {
+  //     console.log('unsub')
+  //     if (unsub) unsub()
+  //   }
+  // }, [platform])
 
   return { pixelMap, loadPixels, updatePixelMap }
 }
