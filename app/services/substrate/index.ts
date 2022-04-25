@@ -1,20 +1,22 @@
 import jsonrpc from '@polkadot/types/interfaces/jsonrpc'
 import { ApiPromise, WsProvider } from '@polkadot/api'
-import { web3Accounts, web3Enable } from '@polkadot/extension-dapp'
+import { web3Accounts, web3Enable, web3FromSource } from '@polkadot/extension-dapp'
 import { keyring as Keyring } from '@polkadot/ui-keyring'
 import { isTestChain } from '@polkadot/util'
 import { TypeRegistry } from '@polkadot/types/create'
-import { AnyTuple, Codec } from '@polkadot/types/types'
+import { AnyTuple, Codec, ISubmittableResult } from '@polkadot/types/types'
 import { StorageKey } from '@polkadot/types'
 
 import { Account, ContractDataService, PickCount, Pixel } from '..'
 import { getIndexArray } from '../../lib'
 import { LotteryInfo, PixelImage } from '../types'
+import { SubmittableExtrinsic } from '@polkadot/api/types'
 
 const config = {
   APP_NAME: 'substrate-front-end-template',
   CUSTOM_RPC_METHODS: {},
   PROVIDER_SOCKET: 'ws://103.173.254.235:9955',
+  // PROVIDER_SOCKET: 'ws://127.0.0.1:9944',
 }
 
 const parsedQuery = new URLSearchParams(window.location.search)
@@ -149,16 +151,16 @@ export class SubstrateDataService implements ContractDataService {
     if (this._keyringState === KeyringState.NONE) {
       await this._api.isReady
       this._keyringState = KeyringState.LOADING
-      console.log('loadAccounts')
       await loadAccounts(this._api, (state) => this._keyringState = state)
     }
     const accs = Keyring.getPairs()
     this.accounts = accs.map(pair => ({
       addr: pair.address,
-      name: pair.meta.name as string
+      name: pair.meta.name as string,
+      source: (pair.meta.source || '') as string
     }))
 
-    console.log(this.accounts)
+    console.log(accs, this.accounts)
 
     this.setCurrentAccount(this.accounts[0])
   }
@@ -265,9 +267,8 @@ export class SubstrateDataService implements ContractDataService {
 
   async getLotteryAccount(): Promise<string> {
     await this._api.isReady
-    const addr = ''
-    // const raw = await this._api.query.lotteryModule.lotteryAccount()
-    // const addr = raw.toHuman() as string
+    const raw = await this._api.query.lotteryModule.lotteryAccount()
+    const addr = raw.toHuman() as string
 
     return addr
   }
@@ -278,19 +279,18 @@ export class SubstrateDataService implements ContractDataService {
 
   async getPickedPixels(): Promise<PickCount[]> {
     const index = await this.getLotteryIndex()
-    // const pickData = await this._api.query.lotteryModule.pixelPickCnt.entries(index)
-    // const picks: PickCount[] = pickData.map(([{ args }, value]) => {
-    //   const [indexRaw, pixelIdRaw] = args
+    const pickData = await this._api.query.lotteryModule.pixelPickCnt.entries(index)
+    const picks: PickCount[] = pickData.map(([{ args }, value]) => {
+      const [indexRaw, pixelIdRaw] = args
 
-    //   const pixelId = Number((pixelIdRaw.toHuman() as string).replace(/,/g, ''))
-    //   const count = Number(value.toHuman() as string)
+      const pixelId = Number((pixelIdRaw.toHuman() as string).replace(/,/g, ''))
+      const count = Number(value.toHuman() as string)
 
-    //   return {
-    //     pixelId,
-    //     count
-    //   }
-    // })
-    const picks: PickCount[] = []
+      return {
+        pixelId,
+        count
+      }
+    })
 
     return picks
   }
@@ -309,34 +309,39 @@ export class SubstrateDataService implements ContractDataService {
     if (this.currentAccount) {
       const pixelIds = getIndexArray(pixel, width, height)
       console.log('mint', pixel, width, height, pixelIds, this.currentAccount)
-      const pair = Keyring.getPair(this.currentAccount.addr)
 
-      await this._api.tx.pixelModule.batchMintPixels(pixelIds).signAndSend(pair, (rs) => {
-        console.log(rs)
-      })
+      const tx = this._api.tx.pixelModule.batchMintPixels(pixelIds)
+      await this.signTx(tx)
     }
   }
 
   async setPixelImage(pixel: number, cid: string, width: number, height: number) {
     if (this.currentAccount) {
-      const pair = Keyring.getPair(this.currentAccount.addr)
-
-      await this._api.tx.pixelModule.setImage(pixel, cid, [width, height]).signAndSend(pair, (rs) => {
-        console.log(rs)
-      })
+      const tx = this._api.tx.pixelModule.setImage(pixel, cid, [width, height])
+      await this.signTx(tx)
     }
   }
 
   async pickPixels(pixel: number, width: number, height: number) {
     if (this.currentAccount) {
       const pixelIds = getIndexArray(pixel, width, height)
-      const pair = Keyring.getPair(this.currentAccount.addr)
-
       console.log('pick', pixelIds, this.currentAccount)
 
-      await this._api.tx.lotteryModule.pick(pixelIds).signAndSend(pair, (rs) => {
-        console.log(rs)
-      })
+      const tx = this._api.tx.lotteryModule.pick(pixelIds)
+      await this.signTx(tx)
+    }
+  }
+
+  // Sign and send the transaction
+  private async signTx(tx: SubmittableExtrinsic<'promise', ISubmittableResult>) {
+    if (this.currentAccount) {
+      if (this.currentAccount.source) {
+        const injector = await web3FromSource(this.currentAccount.source)
+        tx.signAndSend(this.currentAccount.addr, { signer: injector.signer }, (rs) => console.log(rs))
+      } else {
+        const pair = Keyring.getPair(this.currentAccount.addr)
+        tx.signAndSend(pair, (rs) => console.log(rs))
+      }
     }
   }
 

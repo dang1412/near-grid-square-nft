@@ -4,9 +4,6 @@ import { useRecoilValue } from 'recoil'
 import { DropShadowFilter } from '@pixi/filter-drop-shadow'
 import { VirtualElement } from '@popperjs/core'
 
-import Box from '@mui/material/Box'
-import Button from '@mui/material/Button'
-import ButtonGroup from '@mui/material/ButtonGroup'
 import Typography from '@mui/material/Typography'
 import Popper from '@mui/material/Popper'
 
@@ -321,6 +318,8 @@ export const MainLand: React.FC<{}> = () => {
   const upload = async (file: File) => {
     const mainScene = sceneRef.current
     const service = await getContractDataService(platform)
+    // clear select
+    handleCloseSelect()
     if (mainScene && service) {
       // put image on map
       const image = new Image()
@@ -333,9 +332,6 @@ export const MainLand: React.FC<{}> = () => {
       // set image onchain
       const pixel = coordinateToIndex(select.x - WORLD_SIZE / 2, select.y - WORLD_SIZE / 2)
       await service.setPixelImage(pixel, cid, select.width, select.height)
-
-      // clear select
-      handleCloseSelect()
     }
   }
 
@@ -371,6 +367,9 @@ export const MainLand: React.FC<{}> = () => {
           onUploadClick={upload}
         />
       </Popper>
+      <Typography variant="body1" color="success" textAlign={'center'}>
+        Scroll mouse to zoom, A W S D to move (when zoom in)
+      </Typography>
       {/* <Box style={{ display: 'flex' }} sx={{ border: 1, p: 1, bgcolor: 'background.paper' }}>
         Selected: {`(${select.x}, ${select.y}), [${select.width} x ${select.height}]`}
         <span style={{ flexGrow: 1 }} />

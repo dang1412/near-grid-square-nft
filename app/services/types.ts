@@ -1,8 +1,9 @@
 export interface Account {
   addr: string
   name: string
+  source?: string
 }
-  
+
 export interface Pixel {
   pixelId: number
   image?: string
