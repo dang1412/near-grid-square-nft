@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Sprite } from 'pixi.js'
 import { useRecoilValue } from 'recoil'
 import { DropShadowFilter } from '@pixi/filter-drop-shadow'
 import { VirtualElement } from '@popperjs/core'
@@ -7,15 +6,14 @@ import { VirtualElement } from '@popperjs/core'
 import Typography from '@mui/material/Typography'
 import Popper from '@mui/material/Popper'
 
-import { coordinateToIndex, GameEngine, GameSceneViewport, getIndexArray, indexToCoordinate, iterateSelect, SelectionRect } from '../../lib'
-import { Account, getContractDataService, PickCount, PixelImage, type Pixel } from '../../services'
+import { coordinateToIndex, GameEngine, GameSceneViewport, getIndexArray, SelectionRect } from '../../lib'
+import { getContractDataService } from '../../services'
 import { platformState } from '../PlatformSelect'
 import { PixelMap, useAccountPick, useLogin, useLotteryInfo, usePickCount, usePixelData } from '../hooks'
 import { PopperInfo } from './PopperInfo'
 import { uploadIPFS } from './upload-ipfs'
-
-const WORLD_SIZE = 100
-const PIXEL_SIZE = 8
+import { getVirtualElement, pixelToMapXY, PIXEL_SIZE, reflectImages, reflectMintedPixels, reflectPickedPixels, reflectPickedXY, WORLD_SIZE } from './utils'
+import { loadMock } from './mock'
 
 // function gridToWorldCoord(gx: number, gy: number): [number, number] {
 //   const wx = gx - WORLD_SIZE / 2
@@ -24,100 +22,6 @@ const PIXEL_SIZE = 8
 //   return [wx, wy]
 // }
 
-const move = 0.5
-function makeSpriteFloat(sprite: Sprite) {
-  console.log('makeSpriteFloat')
-  sprite.position.x -= move
-  sprite.position.y -= move
-  // sprite.filters = [new DropShadowFilter()]
-}
-
-function undoSpriteFloat(sprite: Sprite) {
-  sprite.position.x += move
-  sprite.position.y += move
-  sprite.filters = []
-}
-
-function getVirtualElement(x: number, y: number): VirtualElement {
-  return {
-    getBoundingClientRect: () => ({
-      width: 0,
-      height: 0,
-      top: y,
-      right: x,
-      bottom: y,
-      left: x,
-      x: x,
-      y: y,
-      toJSON: () => {}
-    })
-  }
-}
-
-function pixelToMapXY(pixelId: number): [number, number] {
-  const [wx, wy] = indexToCoordinate(pixelId)
-  const [x, y] = [wx + WORLD_SIZE / 2, wy + WORLD_SIZE / 2]
-
-  return [x, y]
-}
-
-// reflect all minted pixels on map
-function reflectPixels(scene: GameSceneViewport, pixels: Pixel[], account: Account | null) {
-  for (const pixel of pixels) {
-    // convert to map coordinate
-    const [x, y] = pixelToMapXY(pixel.pixelId)
-    reflectPixelCoordinate(scene, x, y, !!account && account.addr === pixel.owner)
-
-    // pixel.interactive = true
-    // pixel.on('mouseover', () => makeSpriteFloat(pixel))
-    // pixel.on('pointerout', () => undoSpriteFloat(pixel))
-  }
-}
-
-// reflect a minted pixel on map
-function reflectPixelCoordinate(scene: GameSceneViewport, x: number, y: number, isOwner: boolean) {
-  const pixelSprite = scene.addGridSprite(x, y, 'mint')
-  if (isOwner) {
-    // pixelSprite.tint = 0xfce303
-    pixelSprite.tint = 0xdce090
-  } else {
-    pixelSprite.tint = 0xababab
-  }
-  pixelSprite.alpha = 0.4
-}
-
-// reflect picked pixels on map
-let maxPickNumber = 12
-function reflectPickedPixels(scene: GameSceneViewport, pickCounts: PickCount[], ownPickSet: Set<number>) {
-  // update maxPickNumber
-  maxPickNumber = Math.max.apply(null, pickCounts.map(p => p.count)) + 12
-  for (const pick of pickCounts) {
-    // convert to map coordinate
-    const [x, y] = pixelToMapXY(pick.pixelId)
-    reflectPickedXY(scene, x, y, pick.count, ownPickSet.has(pick.pixelId))
-  }
-}
-
-function reflectPickedXY(scene: GameSceneViewport, x: number, y: number, count: number, owned: boolean) {
-  if (count > maxPickNumber) count = maxPickNumber
-  const pickSprite = scene.addGridSprite(x, y, 'pick')
-  if (owned) {
-    pickSprite.tint = 0x00ff00
-  } else {
-    pickSprite.tint = 0xff0000
-  }
-  pickSprite.alpha = count / maxPickNumber * 0.9
-}
-
-// https://ipfs.infura.io/ipfs/QmQPdxccM4czLHHpJGkB1zPGvfzaRwhzoyJkzuweY9kF7n
-function reflectImages(scene: GameSceneViewport, images: PixelImage[]) {
-  for (const image of images) {
-    const url = `https://ipfs.infura.io/ipfs/${image.cid}`
-    const [x, y] = pixelToMapXY(image.pixelId)
-    scene.addImageURL({x, y, width: image.w, height: image.h}, url)
-  }
-}
-
 export const MainLand: React.FC<{}> = () => {
   const platform = useRecoilValue(platformState)
   const wrapperRef = useRef<HTMLDivElement | null>(null)
@@ -125,7 +29,6 @@ export const MainLand: React.FC<{}> = () => {
   const sceneRef = useRef<GameSceneViewport | null>(null)
 
   const [select, setSelect] = useState<SelectionRect>({x: 0, y: 0, width: 0, height: 0})
-  // const [totalReward, setTotalReward] = useState('1000')
 
   // pixel data
   const { pixelMap, loadPixels, updatePixelMap } = usePixelData(platform)
@@ -134,9 +37,6 @@ export const MainLand: React.FC<{}> = () => {
   // pick data
   const { pickCountMap, loadPickCount } = usePickCount(platform)
   const { accountPickSet, loadAccountPick } = useAccountPick(platform)
-
-  // images
-  // const [images, setImages] = useState<PixelImage[]>([])
 
   // lottery info
   const { lotteryAccount, totalReward, lotteryIndex, lotteryInfo, blockNumber } = useLotteryInfo(platform)
@@ -186,11 +86,17 @@ export const MainLand: React.FC<{}> = () => {
       // store the main scene object
       sceneRef.current = mainScene
 
+      // load mock data
+      loadMock(mainScene)
+
       // add layer in order: mint, image, pick
-      await loadPixels()
-      const images = await service.getPixelImages()
-      reflectImages(mainScene, images)
-      await loadPickCount()
+      try {
+        await loadPixels()
+        const images = await service.getPixelImages()
+        reflectImages(mainScene, images)
+        await loadPickCount()
+      } catch (e) {
+      }
     })()
   }, [platform])
 
@@ -198,7 +104,7 @@ export const MainLand: React.FC<{}> = () => {
   useEffect(() => {
     const mainScene = sceneRef.current
     if (mainScene) {
-      reflectPixels(mainScene, Object.values(pixelMap), account)
+      reflectMintedPixels(mainScene, Object.values(pixelMap), account)
     }
   }, [pixelMap, account])
 
@@ -318,20 +224,22 @@ export const MainLand: React.FC<{}> = () => {
   const upload = async (file: File) => {
     const mainScene = sceneRef.current
     const service = await getContractDataService(platform)
-    // clear select
-    handleCloseSelect()
     if (mainScene && service) {
       // put image on map
       const image = new Image()
       image.src = URL.createObjectURL(file)
       mainScene.addImageElement(select, image)
 
+      const { x, y, width, height } = select
+      // clear select
+      handleCloseSelect()
+
       // upload to ipfs
       const cid = await uploadIPFS(file)
 
       // set image onchain
-      const pixel = coordinateToIndex(select.x - WORLD_SIZE / 2, select.y - WORLD_SIZE / 2)
-      await service.setPixelImage(pixel, cid, select.width, select.height)
+      const pixel = coordinateToIndex(x - WORLD_SIZE / 2, y - WORLD_SIZE / 2)
+      await service.setPixelImage(pixel, cid, width, height)
     }
   }
 
@@ -379,6 +287,23 @@ export const MainLand: React.FC<{}> = () => {
         <span style={{backgroundColor: '#dce090', opacity: '0.4', border: '1px solid'}}>&nbsp;&nbsp;</span> Owned minted pixel <br/>
         <span style={{backgroundColor: 'red', opacity: '0.4', border: '1px solid'}}>&nbsp;&nbsp;</span> Picked pixel <br/>
         <span style={{backgroundColor: 'green', opacity: '0.4', border: '1px solid'}}>&nbsp;&nbsp;</span> Owned picked pixel <br/>
+      </div>
+      <Typography variant="h4" color="success" textAlign={'center'}>
+        Pixel NFT holder
+      </Typography>
+      <div>
+        - Showing advertising picture <br/>
+        - Receive a portion of fee <br/>
+        - Receive a portion of total reward <br/>
+      </div>
+      <Typography variant="h4" color="success" textAlign={'center'}>
+        Development path
+      </Typography>
+      <div>
+        - Crosschain <br/>
+        - Dao to control game rules <br/>
+        - More games <br/>
+        - Metaverse 2D <br/>
       </div>
     </div>
   )
