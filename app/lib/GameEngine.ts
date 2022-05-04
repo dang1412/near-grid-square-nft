@@ -21,9 +21,9 @@ export class GameEngine {
     const renderer = this.renderer = new Renderer({
       width: opts.width,
       height: opts.height,
-      // antialias: true,
+      antialias: true,
       view: canvas,
-      backgroundColor: 0xfefefe
+      backgroundColor: 0xffffff
     })
 
     renderer.view.style.border = '1px solid #999999'
@@ -144,6 +144,11 @@ export class GameEngine {
 
   destroy() {
     this.stop = true
+    this.renderer.destroy()
+
+    for (const scene of this.gameScenes) {
+      scene.destroy()
+    }
   }
 
   message(mess: string){

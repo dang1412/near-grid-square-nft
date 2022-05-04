@@ -12,8 +12,8 @@ import { platformState } from '../PlatformSelect'
 import { PixelMap, useAccountPick, useLogin, useLotteryInfo, usePickCount, usePixelData } from '../hooks'
 import { PopperInfo } from './PopperInfo'
 import { uploadIPFS } from './upload-ipfs'
-import { getVirtualElement, pixelToMapXY, PIXEL_SIZE, reflectImages, reflectMintedPixels, reflectPickedPixels, reflectPickedXY, WORLD_SIZE } from './utils'
-import { loadMock } from './mock'
+import { calculateAlpha, getVirtualElement, pixelToMapXY, PIXEL_SIZE, reflectImages, reflectMintedPixels, reflectPickedPixels, reflectPickedXY, WORLD_SIZE } from './utils'
+import { loadMock } from '../guide/utils'
 
 // function gridToWorldCoord(gx: number, gy: number): [number, number] {
 //   const wx = gx - WORLD_SIZE / 2
@@ -42,7 +42,8 @@ export const MainLand: React.FC<{}> = () => {
   const { lotteryAccount, totalReward, lotteryIndex, lotteryInfo, blockNumber } = useLotteryInfo(platform)
 
   useEffect(() => {
-    (async () => {
+    let engine: GameEngine | null = null
+    ;(async () => {
       // Service
       const service = await getContractDataService(platform)
       if (!service || !wrapperRef.current || !canvasRef.current) { return }
@@ -53,7 +54,7 @@ export const MainLand: React.FC<{}> = () => {
       const canvas = canvasRef.current
 
       // Engine
-      const engine = new GameEngine(canvas, { width, height })
+      engine = new GameEngine(canvas, { width, height })
 
       // Map scene
       const mainScene = new GameSceneViewport(engine, {
@@ -87,7 +88,7 @@ export const MainLand: React.FC<{}> = () => {
       sceneRef.current = mainScene
 
       // load mock data
-      loadMock(mainScene)
+      loadMock(mainScene, 34)
 
       // add layer in order: mint, image, pick
       try {
@@ -98,6 +99,12 @@ export const MainLand: React.FC<{}> = () => {
       } catch (e) {
       }
     })()
+
+    return () => {
+      if (engine) {
+        engine.destroy()
+      }
+    }
   }, [platform])
 
   // reflect minted pixels on map
@@ -181,9 +188,10 @@ export const MainLand: React.FC<{}> = () => {
         }
         // update pickCountMap
         const count = ++pickCountMap[pixelId].count
+        const alpha = calculateAlpha(count)
         // update on map
         const [x, y] = pixelToMapXY(pixelId)
-        reflectPickedXY(mainScene, x, y, count, true)
+        reflectPickedXY(mainScene, x, y, alpha, true)
 
         // update account pick state
         accountPickSet.add(pixelId)
@@ -256,7 +264,7 @@ export const MainLand: React.FC<{}> = () => {
       <Typography variant="h4" color="success" style={{textAlign: 'center'}}>
         {totalReward} PIX
       </Typography>
-      <canvas onMouseOut={handleMouseLeave} ref={(_c) => canvasRef.current = _c} style={{backgroundColor: 'grey'}} />
+      <canvas onMouseOut={handleMouseLeave} ref={(_c) => canvasRef.current = _c} />
       <Popper
         id={id}
         open={open}

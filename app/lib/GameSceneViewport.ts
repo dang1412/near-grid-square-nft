@@ -35,6 +35,7 @@ export interface IGameScene {
   onSelect(clientX: number, clientY: number, x1: number, y1: number, x2: number, y2: number): void
   onSelectEnd(clientX: number, clientY: number): void
   onMove(clientX: number, clientY: number, x: number, y: number): void
+  destroy(): void
 }
 
 export class GameSceneViewport implements IGameScene {
@@ -74,6 +75,10 @@ export class GameSceneViewport implements IGameScene {
     })
 
     this.sceneIndex = engine.addScene(this)
+  }
+
+  markDirty() {
+    this.viewport.dirty = true
   }
 
   onMove(clientX: number, clientY: number, x: number, y: number): void {
@@ -175,6 +180,8 @@ export class GameSceneViewport implements IGameScene {
       height: y2Coord - y1Coord + 1,
     }
 
+    this.viewport.dirty = true
+
     // if (this.opts.onSelect) {
     //   this.opts.onSelect(clientX, clientY, this.selectingRect)
     // }
@@ -195,6 +202,7 @@ export class GameSceneViewport implements IGameScene {
     if (rect) {
       rect.width = 0
       rect.height = 0
+      this.viewport.dirty = true
     }
   }
 
@@ -223,8 +231,10 @@ export class GameSceneViewport implements IGameScene {
     }
 
     if (this.viewport.dirty) {
+      console.log('dirty -> update')
       const renderer = this.engine.getRenderer()
       renderer.render(this.viewport)
+      this.viewport.dirty = false
     }
   }
 

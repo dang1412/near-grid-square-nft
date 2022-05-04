@@ -15,8 +15,9 @@ import { SubmittableExtrinsic } from '@polkadot/api/types'
 const config = {
   APP_NAME: 'substrate-front-end-template',
   CUSTOM_RPC_METHODS: {},
-  PROVIDER_SOCKET: 'ws://103.173.254.235:9955',
-  // PROVIDER_SOCKET: 'ws://127.0.0.1:9944',
+  // PROVIDER_SOCKET: 'wss://rpc.tauhu.cloud',
+  // PROVIDER_SOCKET: 'ws://103.173.254.235:9955',
+  PROVIDER_SOCKET: 'ws://127.0.0.1:9944',
 }
 
 const parsedQuery = new URLSearchParams(window.location.search)

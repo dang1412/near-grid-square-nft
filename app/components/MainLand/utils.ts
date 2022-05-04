@@ -70,32 +70,47 @@ export function reflectMintedPixelXY(scene: GameSceneViewport, x: number, y: num
 }
 
 // reflect picked pixels on map
-let maxPickNumber = 12
+// let maxPickNumber = 12
+const globalVars = {
+  maxPickNumber: 12
+}
+
+export const DEFAULT_MAX_PICK = 12
+
 export function reflectPickedPixels(scene: GameSceneViewport, pickCounts: PickCount[], ownPickSet: Set<number>) {
   // update maxPickNumber
-  maxPickNumber = Math.max.apply(null, pickCounts.map(p => p.count)) + 12
+  const maxPickNumber = Math.max.apply(null, pickCounts.map(p => p.count)) + DEFAULT_MAX_PICK
+  console.log('maxPickNumber', maxPickNumber)
   for (const pick of pickCounts) {
     // convert to map coordinate
     const [x, y] = pixelToMapXY(pick.pixelId)
-    reflectPickedXY(scene, x, y, pick.count, ownPickSet.has(pick.pixelId))
+    const alpha = calculateAlpha(pick.count, maxPickNumber)
+    reflectPickedXY(scene, x, y, alpha, ownPickSet.has(pick.pixelId))
   }
 }
 
-export function reflectPickedXY(scene: GameSceneViewport, x: number, y: number, count: number, owned: boolean) {
-  if (count > maxPickNumber) count = maxPickNumber
-  const pickSprite = scene.addGridSprite(x, y, 'pick')
-  if (owned) {
-    pickSprite.tint = 0x00ff00
-  } else {
-    pickSprite.tint = 0xff0000
-  }
-  pickSprite.alpha = count / maxPickNumber * 0.9
+export function calculateAlpha(count: number, maxPick = DEFAULT_MAX_PICK): number {
+  return count / maxPick * 0.8
+}
+
+export function reflectPickedXY(scene: GameSceneViewport, x: number, y: number, alpha: number, owned: boolean) {
+  // maxPickNumber = maxPickNumber || 12
+  // if (count > maxPickNumber) count = maxPickNumber
+  // const pickSprite = scene.addGridSprite(x, y, 'pick')
+  // if (owned) {
+  //   pickSprite.tint = 0x00ff00
+  // } else {
+  //   pickSprite.tint = 0xff3526
+  // }
+  // pickSprite.alpha = count / maxPickNumber * 0.9
+  const color = owned ? 0x00ff00 : 0xff0000
+  scene.setPixel(x, y, color, alpha, 'pick')
 }
 
 // https://ipfs.infura.io/ipfs/QmQPdxccM4czLHHpJGkB1zPGvfzaRwhzoyJkzuweY9kF7n
 export function reflectImages(scene: GameSceneViewport, images: PixelImage[]) {
   for (const image of images) {
-    const url = `https://ipfs.infura.io/ipfs/${image.cid}`
+    const url = `https://ipfs.io/ipfs/${image.cid}`
     const [x, y] = pixelToMapXY(image.pixelId)
     scene.addImageURL({x, y, width: image.w, height: image.h}, url)
   }

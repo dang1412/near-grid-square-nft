@@ -1,6 +1,6 @@
-import { GameSceneViewport, SelectionRect, iterateSelect } from '../../lib'
+import { GameSceneViewport, SelectionRect, iterateSelect } from '../../../lib'
 // import { Pixel } from '../../services/types'
-import { reflectMintedPixelXY, reflectPickedXY } from './utils'
+import { calculateAlpha, reflectMintedPixelXY, reflectPickedXY } from '../../MainLand/utils'
 
 const areas: SelectionRect[] = [
   {x: 16, y: 5, width: 3, height: 3},
@@ -69,11 +69,11 @@ const images: { select: SelectionRect, cid: string }[] = [
   },
 ]
 
-export function loadMock(scene: GameSceneViewport) {
+export function loadMock(scene: GameSceneViewport, move = 0) {
   // minted pixels
   for (const select of areas) {
     iterateSelect(select, (x, y) => {
-      reflectMintedPixelXY(scene, x + 34, y + 34, false)
+      reflectMintedPixelXY(scene, x + move, y + move, false)
     })
   }
 
@@ -81,8 +81,8 @@ export function loadMock(scene: GameSceneViewport) {
   for (const image of images) {
     const url = `https://ipfs.infura.io/ipfs/${image.cid}`
     const select = {...image.select}
-    select.x += 34
-    select.y += 34
+    select.x += move
+    select.y += move
     scene.addImageURL(select, url)
   }
 
@@ -91,8 +91,8 @@ export function loadMock(scene: GameSceneViewport) {
   const counts: {[key: string]: number} = {}
   for (const select of pickAreas) {
     iterateSelect(select, (x, y) => {
-      x += 34
-      y += 34
+      x += move
+      y += move
       const key = `${x}, ${y}`
       if (!counts[key]) {
         counts[key] = 0
@@ -105,6 +105,8 @@ export function loadMock(scene: GameSceneViewport) {
 
   for (const [x, y] of coords) {
     const key = `${x}, ${y}`
-    reflectPickedXY(scene, x, y, counts[key], false)
+    const alpha = calculateAlpha(counts[key])
+
+    reflectPickedXY(scene, x, y, alpha, false)
   }
 }
